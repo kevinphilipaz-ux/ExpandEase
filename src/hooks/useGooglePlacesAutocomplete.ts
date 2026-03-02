@@ -1,0 +1,97 @@
+import { useEffect, useRef } from 'react';
+import { loadGoogleMapsScript } from '../utils/loadGoogleMapsScript';
+
+export interface UseGooglePlacesAutocompleteOptions {
+  /** Called when user selects a place from the dropdown. */
+  onPlaceSelect: (formattedAddress: string) => void;
+  /** Restrict to region codes (e.g. ['us']). Default: US only. */
+  includedRegionCodes?: string[];
+  /** Only run when this is true. */
+  enabled?: boolean;
+}
+
+/**
+ * Mount Google PlaceAutocompleteElement (new API) into a container.
+ * Use a container ref; the hook appends the element and listens for gmp-select.
+ */
+export function useGooglePlacesAutocomplete(
+  containerRef: React.RefObject<HTMLDivElement | null>,
+  options: UseGooglePlacesAutocompleteOptions
+) {
+  const { onPlaceSelect, includedRegionCodes = ['us'], enabled = true } = options;
+  const onPlaceSelectRef = useRef(onPlaceSelect);
+  onPlaceSelectRef.current = onPlaceSelect;
+  const elementRef = useRef<HTMLElement | null>(null);
+
+  useEffect(() => {
+    if (!enabled || !containerRef.current) return;
+
+    let cancelled = false;
+
+    loadGoogleMapsScript()
+      .then(() => {
+        if (cancelled || !containerRef.current) return;
+        const google = window.google;
+        const places = google?.maps?.places as { PlaceAutocompleteElement?: new (opts?: { includedRegionCodes?: string[] }) => HTMLElement } | undefined;
+        const PlaceAutocompleteElement = places?.PlaceAutocompleteElement;
+        if (!PlaceAutocompleteElement) {
+          if (import.meta.env?.DEV) console.warn('[Google Places] PlaceAutocompleteElement not found. Use v=weekly and ensure Places API is enabled.');
+          return;
+        }
+        // PlaceAutocompleteElement uses closed Shadow DOM; force open so we can remove the blue focus ring from the inner input
+        const originalAttachShadow = Element.prototype.attachShadow;
+        Element.prototype.attachShadow = function (init: ShadowRootInit) {
+          return originalAttachShadow.call(this, { ...init, mode: 'open' });
+        };
+        const el = new PlaceAutocompleteElement({ includedRegionCodes }) as HTMLElement;
+        el.setAttribute('class', 'gmp-place-autocomplete-input');
+        containerRef.current.innerHTML = '';
+        containerRef.current.appendChild(el);
+        Element.prototype.attachShadow = originalAttachShadow;
+
+        const injectFocusRingRemoval = (root: ShadowRoot) => {
+          if (root.querySelector('style[data-gmp-focus-fix]')) return;
+          const style = root.appendChild(document.createElement('style'));
+          style.setAttribute('data-gmp-focus-fix', '');
+          style.textContent = `
+            input:focus, input:focus-visible,
+            [tabindex]:focus, [tabindex]:focus-visible { outline: none !important; box-shadow: none !important; }
+          `;
+        };
+        const root = el.shadowRoot;
+        if (root) injectFocusRingRemoval(root);
+        else requestAnimationFrame(() => { if (el.shadowRoot && !cancelled) injectFocusRingRemoval(el.shadowRoot); });
+        elementRef.current = el;
+
+        const handleSelect = async (ev: { placePrediction?: { toPlace?: () => { fetchFields: (opts: { fields: string[] }) => Promise<void>; formattedAddress?: string; toJSON?: () => Record<string, unknown> } } }) => {
+          const placePrediction = ev?.placePrediction;
+          if (!placePrediction?.toPlace) return;
+          try {
+            const place = placePrediction.toPlace();
+            await place.fetchFields({ fields: ['formattedAddress'] });
+            const addr = (place as { formattedAddress?: string }).formattedAddress ?? (place.toJSON?.() as { formattedAddress?: string } | undefined)?.formattedAddress;
+            if (addr) onPlaceSelectRef.current(addr);
+          } catch {
+            // ignore
+          }
+        };
+
+        el.addEventListener('gmp-select', handleSelect as EventListener);
+      })
+      .catch((err) => {
+        if (import.meta.env?.DEV && err?.message) {
+          console.warn('[Google Places]', err.message);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+      if (elementRef.current && containerRef.current?.contains(elementRef.current)) {
+        elementRef.current.remove();
+      }
+      elementRef.current = null;
+    };
+  }, [enabled, includedRegionCodes?.join(',')]);
+
+  return {};
+}

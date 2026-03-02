@@ -1,0 +1,26 @@
+/* PLEASE NOTE: THESE TAILWIND IMPORTS SHOULD NEVER BE DELETED */
+@import 'tailwindcss/base';
+@import 'tailwindcss/components';
+@import 'tailwindcss/utilities';
+
+/* DO NOT DELETE THESE TAILWIND IMPORTS, OTHERWISE THE STYLING WILL NOT RENDER AT ALL */
+
+/* Google Places Autocomplete dropdown must appear above modals/cards */
+.pac-container {
+  z-index: 99999 !important;
+}
+
+/* PlaceAutocompleteElement (new API) - sizing and stacking so dropdown is visible */
+gmp-place-autocomplete {
+  display: block !important;
+  width: 100% !important;
+  min-height: 44px;
+  position: relative !important;
+  z-index: 10000 !important;
+}
+
+/* Remove browser default blue focus ring on the address input (tactile feedback is on the wrapper via focus-within) */
+.gmp-place-autocomplete-input:focus {
+  outline: none !important;
+  box-shadow: none !important;
+}
