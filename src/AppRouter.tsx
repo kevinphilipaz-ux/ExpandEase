@@ -4,6 +4,8 @@ import { App } from './App';
 import { LandingPage } from './pages/LandingPage';
 import { OnboardingFlow } from './pages/OnboardingFlow';
 import { DesignPackage } from './pages/DesignPackage';
+import { ForContractors } from './pages/ForContractors';
+import { ForLenders } from './pages/ForLenders';
 import { OnboardingProvider, useOnboarding } from './context/OnboardingContext';
 
 /** Sets the browser tab title to a personalized value per route (e.g. "Kevin's Dream Home Analysis | ExpandEase"). */
@@ -36,6 +38,8 @@ export function AppRouter() {
           <Route path="/onboarding" element={<OnboardingFlow />} />
           <Route path="/analysis" element={<App />} />
           <Route path="/design-package" element={<DesignPackage />} />
+          <Route path="/for-contractors" element={<ForContractors />} />
+          <Route path="/for-lenders" element={<ForLenders />} />
         </Routes>
       </BrowserRouter>
     </OnboardingProvider>

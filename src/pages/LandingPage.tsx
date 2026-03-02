@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
+import { WaitlistSection } from '../components/landing/WaitlistSection';
 import { motion } from 'framer-motion';
 import { useOnboarding } from '../context/OnboardingContext';
 import { useGooglePlacesAutocomplete } from '../hooks/useGooglePlacesAutocomplete';
@@ -521,6 +522,9 @@ export function LandingPage() {
         </div>
       </section>
 
+      {/* Waitlist */}
+      <WaitlistSection />
+
       {/* Footer */}
       <footer className="bg-black py-12 px-4 border-t border-white/10">
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-8">
@@ -532,12 +536,12 @@ export function LandingPage() {
           <div className="flex gap-8 text-sm text-gray-400">
             <a href="#" className="hover:text-white transition-colors">About</a>
             <a href="#" className="hover:text-white transition-colors">How It Works</a>
-            <a href="#" className="hover:text-white transition-colors">Financing</a>
-            <a href="#" className="hover:text-white transition-colors">Contact</a>
+            <Link to="/for-contractors" className="hover:text-white transition-colors">For Contractors</Link>
+            <Link to="/for-lenders" className="hover:text-white transition-colors">For Lenders</Link>
           </div>
 
           <div className="text-xs text-gray-600">
-            <p>© 2024 ExpandEase. All rights reserved.</p>
+            <p>© 2025 ExpandEase. All rights reserved.</p>
           </div>
         </div>
       </footer>
