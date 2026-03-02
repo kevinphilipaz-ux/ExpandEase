@@ -24,3 +24,8 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Junk entries (path-named artifacts from prior shell session)
+exec*
+gcloud*
+:/Users
