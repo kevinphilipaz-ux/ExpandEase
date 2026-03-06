@@ -144,7 +144,7 @@ export function LandingPage() {
   return (
     <div className="min-h-screen w-full bg-[#0a0612] text-white overflow-x-hidden">
       {/* Announcement Bar */}
-      <div className="bg-gradient-to-r from-pink-600 to-purple-600 text-white text-center py-2 px-4 text-sm">
+      <div className="bg-gradient-to-r from-pink-600 to-purple-600 text-white text-center py-2 px-4 text-xs sm:text-sm">
         <span className="font-medium">🎉 New: Get pre-qualified for renovation financing in 60 seconds</span>
       </div>
 
@@ -169,7 +169,7 @@ export function LandingPage() {
           </div>
           <button 
             onClick={() => navigate('/onboarding')}
-            className="px-5 py-2 bg-white/10 hover:bg-white/20 rounded-xl text-sm font-medium transition-colors"
+            className="px-5 py-2.5 min-h-[44px] bg-white/10 hover:bg-white/20 rounded-xl text-sm font-medium transition-colors flex items-center"
           >
             Get Started
           </button>
@@ -188,8 +188,8 @@ export function LandingPage() {
           <div className="absolute inset-0 bg-gradient-to-b from-[#0a0612]/50 via-[#0a0612]/80 to-[#0a0612]" />
         </div>
 
-        <div className="relative z-10 max-w-7xl mx-auto px-4 py-16 w-full">
-          <div className="grid lg:grid-cols-2 gap-12 items-center">
+        <div className="relative z-10 max-w-7xl mx-auto px-4 py-10 sm:py-16 w-full">
+          <div className="grid lg:grid-cols-2 gap-8 sm:gap-12 items-center">
             {/* Left: Copy */}
             <motion.div
               initial={{ opacity: 0, y: 20 }}

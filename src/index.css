@@ -24,3 +24,21 @@ gmp-place-autocomplete {
   outline: none !important;
   box-shadow: none !important;
 }
+
+/* Hide scrollbar for horizontal/vertical scroll areas (e.g. tab bars, pill strips) while keeping scroll working */
+.no-scrollbar {
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+/* Optional: safe area insets for fixed elements on notched devices */
+.safe-area-bottom {
+  padding-bottom: env(safe-area-inset-bottom, 0);
+}
+.safe-area-right {
+  padding-right: env(safe-area-inset-right, 0);
+}

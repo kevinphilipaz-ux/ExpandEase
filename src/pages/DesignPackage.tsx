@@ -812,7 +812,7 @@ export function DesignPackage() {
                 </div>
 
                 {/* Floating Controls */}
-                <div className="absolute bottom-8 right-8 flex gap-2">
+                <div className="absolute bottom-4 right-4 md:bottom-8 md:right-8 flex gap-2">
                   <button className="p-3 bg-blue-600 hover:bg-blue-500 text-white rounded-full shadow-lg transition-colors">
                     <Maximize2 size={20} />
                   </button>

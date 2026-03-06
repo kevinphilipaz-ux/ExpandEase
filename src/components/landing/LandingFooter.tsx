@@ -12,13 +12,13 @@ export function LandingFooter() {
         </div>
 
         <div className="flex gap-8 text-sm text-gray-400">
-          <a href="#" className="hover:text-white transition-colors">
+          <a href="#" className="hover:text-white transition-colors py-2 min-h-[44px] flex items-center">
             About
           </a>
-          <a href="#" className="hover:text-white transition-colors">
+          <a href="#" className="hover:text-white transition-colors py-2 min-h-[44px] flex items-center">
             Lending Partners
           </a>
-          <a href="#" className="hover:text-white transition-colors">
+          <a href="#" className="hover:text-white transition-colors py-2 min-h-[44px] flex items-center">
             Login
           </a>
         </div>
