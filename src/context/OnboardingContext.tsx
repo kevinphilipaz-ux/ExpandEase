@@ -1,4 +1,4 @@
-import React, { useState, createContext, useContext } from 'react';
+import React, { useState, createContext, useContext, type ReactNode } from 'react';
 export interface OnboardingData {
   /** User's first name for personalization (e.g. tab title, greetings). Demo default: Kevin */
   firstName: string;
@@ -25,7 +25,7 @@ const defaultData: OnboardingData = {
 const OnboardingContext = createContext<OnboardingContextType | undefined>(
   undefined
 );
-export function OnboardingProvider({ children }: {children: ReactNode;}) {
+export function OnboardingProvider({ children }: { children: ReactNode }) {
   const [data, setData] = useState<OnboardingData>(defaultData);
   const updateData = (updates: Partial<OnboardingData>) => {
     setData((prev) => ({

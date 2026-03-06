@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Home, LineChart, MapPin, Edit2, Check, TrendingUp, BedDouble, Bath, Ruler, Calendar, ChevronRight, Loader2, RefreshCw } from 'lucide-react';
 import { useOnboarding } from '../context/OnboardingContext';
+import { useProjectOptional } from '../context/ProjectContext';
 import { motion, AnimatePresence } from 'framer-motion';
 import { usePropertyData } from '../hooks/usePropertyData';
 
@@ -20,12 +21,12 @@ export function PropertyOverview({ onProgressUpdate }: PropertyOverviewProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [showComps, setShowComps] = useState(false);
 
+  const projectCtx = useProjectOptional();
   let displayAddress = '512 N 41st St, Phoenix, AZ 85018';
   try {
     const { data } = useOnboarding();
-    if (data.address && data.address.length > 5) {
-      displayAddress = data.address;
-    }
+    const addr = projectCtx?.project?.property?.address || data?.address;
+    if (addr && addr.length > 5) displayAddress = addr;
   } catch {
     // Context not available, use default
   }
@@ -51,6 +52,7 @@ export function PropertyOverview({ onProgressUpdate }: PropertyOverviewProps) {
       });
     }
   }, [loading, subject.beds, subject.baths, subject.sqft, subject.yearBuilt, subject.pool]);
+
 
   useEffect(() => {
     onProgressUpdate?.(100);
@@ -130,7 +132,24 @@ export function PropertyOverview({ onProgressUpdate }: PropertyOverviewProps) {
           </p>
         </div>
         <button
-          onClick={() => setIsEditing(!isEditing)}
+          onClick={() => {
+            if (isEditing && projectCtx) {
+              projectCtx.updateProject({
+                property: {
+                  ...projectCtx.project.property,
+                  address: displayAddress,
+                  beds: edits.beds,
+                  baths: edits.baths,
+                  sqft: edits.sqft,
+                  yearBuilt: edits.yearBuilt,
+                  pool: edits.pool,
+                  currentValue: subject.value > 0 ? subject.value : projectCtx.project.property.currentValue,
+                  equity: subject.equity ?? projectCtx.project.property.equity,
+                },
+              });
+            }
+            setIsEditing(!isEditing);
+          }}
           className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-white text-sm font-medium transition-all"
         >
           {isEditing ? <Check size={16} /> : <Edit2 size={16} />}

@@ -1,49 +1,83 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Home, CheckCircle, XCircle, ArrowRight, Shield, TrendingUp, FileText, Users, ChevronDown, ChevronUp } from 'lucide-react';
+import { Home, CheckCircle, XCircle, ArrowRight, Shield, TrendingUp, FileText, Users, ChevronDown, ChevronUp, HeartHandshake, CalendarCheck, MessageSquare, Filter, Magnet, ClipboardList } from 'lucide-react';
 
 const BENEFITS = [
   {
-    icon: FileText,
-    title: 'De-Risked Loan Files',
-    desc: 'Every file includes a fixed-price contractor contract, complete material and labor SOW, and documented homeowner selections. Your underwriters have everything they need before they open the file.',
-  },
-  {
-    icon: Shield,
-    title: 'RESPA-Compliant Revenue Share',
-    desc: 'Our fee structure is built on bona-fide services rendered. We can walk through the compliance structure with your legal team — we\'ve already done that work.',
-  },
-  {
     icon: Users,
-    title: 'Co-Marketing Opportunity',
-    desc: 'White-label the platform. "Powered by [Your Credit Union]." Reach equity-rich members who are locked into low rates and actively looking for renovation financing.',
+    title: 'We Bring You Qualified Borrowers',
+    desc: 'Homeowners come to ExpandEase ready to renovate. Every file is backed by a highly qualified borrower. We are targeting prime and super-prime homeowners in the Phoenix metro with an average FICO of 740+ and seeking post-renovation LTVs under 80%. They have already committed a $500 deposit for our 3D visualization and PRD, ensuring 100% intent before the file ever hits your desk. We drive the leads; you approve and fund.',
+  },
+  {
+    icon: FileText,
+    title: 'De-Risked Loan Files — Golden Record Every Time',
+    desc: 'Every file includes a fixed-price contractor contract, complete material and labor SOW, and documented homeowner selections. Your underwriters receive an \'appraisal-ready\' PRD to instantly determine After-Repair Value (ARV). No \'TBD\' on scope or cost. SOW accuracy is 95%+ before a dollar is funded.',
   },
   {
     icon: TrendingUp,
-    title: 'Fast Underwriting',
-    desc: 'Pre-vetted borrowers, pre-vetted contractors, and a complete project package. Your underwriters move fast because the risk has already been removed.',
+    title: 'Higher Project Success Rates = Lower Default Risk',
+    desc: 'Renovation failures and disputes are leading causes of borrower stress and default. Our process gives homeowner, contractor, and lender one signed source of truth. Clear scope and milestone-based funding mean projects finish on time and on budget. Fewer blowups, fewer extensions, fewer workout scenarios on your books.',
+  },
+  {
+    icon: HeartHandshake,
+    title: 'Homeowner Satisfaction — Fewer Disputes, Fewer Defaults',
+    desc: 'When expectations are set in writing from day one and change orders are documented, homeowners stay satisfied. Satisfied borrowers pay. Our process reduces the dispute spiral that turns renovation stress into missed payments and default. You get better outcomes and a cleaner portfolio.',
+  },
+  {
+    icon: Shield,
+    title: 'No Referral Fees — RESPA-Compliant',
+    desc: 'We do not accept referral fees for sending you borrowers. We are paid for bona-fide services: borrower verification, contractor vetting, and Golden Record documentation. We provide full compliance documentation and are happy to walk through the structure with your legal team. We\'ve already done that work.',
+  },
+  {
+    icon: CalendarCheck,
+    title: 'Post-Funding Visibility — You\'re Not in the Dark',
+    desc: 'We don\'t disappear after you fund. Our platform tracks contractor trade scheduling, milestone completion, and change orders in real time. Full visibility from first draw to final inspection. You and the borrower see the same picture. Fewer "where\'s my draw?" calls and fewer surprises.',
   },
 ];
 
 const STATS = [
   { value: '$280K', label: 'Average loan size' },
-  { value: '30 Days', label: 'Target approval timeline' },
+  { value: '30 Days', label: 'Application to funding (target)' },
   { value: '95%+', label: 'SOW accuracy before funding' },
-  { value: '55+', label: 'Phoenix-area credit unions' },
+  { value: 'You', label: 'Hold escrow — you control the draws' },
 ];
 
-const OBJECTIONS = [
+const INDUSTRY_QUOTES = [
+  { quote: 'Have you seen the percentage of people who get divorced during a renovation?', name: 'Mortgage broker', img: 'https://images.unsplash.com/photo-1560250097-0b93528c311a?w=200&h=200&fit=crop&facepad=2' },
+  { quote: 'Your wife will see how it looks midway through and hate it forever.', name: 'Lender', img: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=200&h=200&fit=crop&facepad=2' },
+  { quote: 'Why not just buy a new house?', name: 'Broker', img: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200&h=200&fit=crop&facepad=2' },
+  { quote: "Winning over the renovation customer — that's a very big hill to climb.", name: 'Director, Business Dev', img: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=200&h=200&fit=crop&facepad=2' },
+  { quote: 'Renovations cause marital strain; the process is so inherently unpleasant that customers may stay dissatisfied even after completion.', name: 'Industry veteran', img: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=200&h=200&fit=crop&facepad=2' },
+];
+
+const OBJECTION_CATEGORIES = [
   {
-    q: '"How do we know the contractors are legitimate?"',
-    a: 'Every contractor in our network is licensed, insured, and vetted before their first project. We verify their license with the Arizona Registrar of Contractors, confirm insurance, and review their project history. We monitor their standing throughout the relationship.',
+    title: 'Contractor & project risk',
+    items: [
+      { q: '"How do we know the contractors are legitimate?"', a: 'Every contractor in our network is licensed, insured, and vetted before their first project. We verify their license with the Arizona Registrar of Contractors, confirm insurance, and review their project history. We monitor their standing throughout the relationship. No contractor, no Golden Record — no fund.' },
+      { q: '"What if the contractor walks or fails mid-project?"', a: 'Funds are in escrow and released on verified milestones, not upfront. If a contractor doesn\'t perform, they don\'t get paid for incomplete work. The homeowner and you have a clear scope and a new contractor can be brought in against the same Golden Record. We also vet and monitor contractors so the bar is high from the start.' },
+      { q: '"What if the borrower abandons the project or stops participating?"', a: 'The loan is between you and the borrower. If the borrower walks, your standard loan and collateral remedies apply. The Golden Record and fixed-price contract still define scope and cost, so if the project is completed later — by the same or a new contractor — the same terms apply. We don\'t change your rights as the lender.' },
+    ],
   },
   {
-    q: '"What about regulatory risk?"',
-    a: 'Our revenue model is structured around bona-fide services rendered — borrower verification, contractor vetting, and Golden Record documentation — consistent with RESPA Section 8. We provide full compliance documentation and are happy to engage with your legal team.',
+    title: 'Regulatory, escrow & budget',
+    items: [
+      { q: '"What about regulatory risk? RESPA, referrals, kickbacks?"', a: 'We do not accept referral fees or kickbacks. Our revenue is from bona-fide services: borrower verification, contractor vetting, and Golden Record documentation — consistent with RESPA Section 8. We provide full compliance documentation and are happy to engage with your legal team. We\'ve already done that work.' },
+      { q: '"What does this cost us? Referral fees?"', a: 'We are not paid a referral fee for sending you the borrower. Our revenue is from bona-fide services: borrower verification, contractor vetting, and Golden Record documentation. We provide full compliance documentation for your legal team and are happy to walk through the structure. You get a complete file and a qualified applicant; we get paid for the work we do, in a RESPA Section 8–compliant way.' },
+      { q: '"What\'s our exposure if a project goes over budget?"', a: 'Zero. Every Golden Record includes a signed, fixed-price contract with a vetted ExpandEase contractor. Any change orders must be mutually signed in our portal and funded out-of-pocket by the homeowner before work continues. The bank\'s exposure is locked at underwriting.' },
+      { q: '"Who holds the escrow? Do we keep control?"', a: 'You hold the capital. We provide the milestone verification through geo-tagged, time-stamped photo and video documentation uploaded directly by the contractor. Your desk reviews the milestone in the ExpandEase portal, approves it, and wires funds directly. We never touch your money.' },
+    ],
   },
   {
-    q: '"What\'s our exposure if a project goes over budget?"',
-    a: 'It doesn\'t. Fixed-price contracts mean the contractor absorbs cost overruns, not the lender or homeowner. Any scope changes require documented change orders with all-party approval before any cost increase takes effect. The Golden Record is a living document.',
+    title: 'Product, volume & Golden Record',
+    items: [
+      { q: '"Why not just do FHA 203(k) or our existing reno product?"', a: '203(k) is slow, HUD-consultant heavy, and often 90+ days. Our flow delivers a lender-ready Golden Record in a fraction of that time — fixed price, vetted contractor, full SOW — so you can use your own product or 203(k) with a complete file. We de-risk and accelerate; you keep underwriting control.' },
+      { q: '"How do we get volume? Is there real demand?"', a: 'We\'re building the homeowner side in Arizona — people who are equity-rich, rate-locked, and want to renovate instead of move. We qualify them, lock scope, and direct them to our lender network. As a partner, you get access to that pipeline. Co-marketing and white-label options ("Powered by [Your CU]") help you capture more of it.' },
+      { q: '"What about appraisal gaps or property valuation?"', a: 'The Golden Record includes a professional, appraisal-ready project scope and fixed contractor pricing. You underwrite to the same standards you use today — we just ensure the renovation piece is defined, priced, and contractor-backed before it hits your desk. Appraisal and valuation remain your process.' },
+      { q: '"Integration sounds heavy. How do we plug in?"', a: 'We don\'t require a core integration to start. You receive the Golden Record (borrower financials, fixed-price contract, full SOW, property data) and underwrite in your existing systems. Optional: we can align on data formats and status updates so you get milestone visibility. We fit your workflow; we don\'t replace it.' },
+      { q: '"What if ExpandEase goes away after we fund?"', a: 'Your loan is with the borrower; funds are in your escrow. Milestone verification and draw release are contractually between you, the borrower, and the contractor. We facilitate the process and the platform — we don\'t hold your money or your relationship. You\'re not dependent on us for servicing.' },
+      { q: '"What\'s actually in the Golden Record? Can we see a sample?"', a: 'Every Golden Record includes: borrower info (name, contact, occupancy), property address and key details, income and debt summary for DTI, fixed-price contractor contract with license/insurance, full scope of work (materials and labor), milestone schedule, and a single document ID for version control. We can provide a redacted sample for your underwriting and compliance review.' },
+    ],
   },
 ];
 
@@ -53,7 +87,13 @@ export function ForLenders() {
   const [form, setForm] = useState<FormData>({ institution: '', name: '', title: '', email: '', phone: '', volume: '', notes: '' });
   const [submitted, setSubmitted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const [openObj, setOpenObj] = useState<number | null>(null);
+  const [openObj, setOpenObj] = useState<string | null>(null);
+  const [quoteIndex, setQuoteIndex] = useState(0);
+
+  useEffect(() => {
+    const t = setInterval(() => setQuoteIndex(i => (i + 1) % INDUSTRY_QUOTES.length), 5000);
+    return () => clearInterval(t);
+  }, []);
 
   const set = (key: keyof FormData) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) =>
     setForm(f => ({ ...f, [key]: e.target.value }));
@@ -62,6 +102,7 @@ export function ForLenders() {
     e.preventDefault();
     setSubmitting(true);
     try {
+      // TODO: Replace with your real Formspree form ID before go-live so partnership inquiries are received.
       await fetch('https://formspree.io/f/REPLACE_WITH_FORM_ID', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ...form, _subject: 'Lender Partnership Inquiry — ExpandEase' }),
@@ -99,12 +140,29 @@ export function ForLenders() {
             The renovation loan file<br />
             <span className="bg-gradient-to-r from-pink-400 to-purple-400 bg-clip-text text-transparent">you've always wanted.</span>
           </h1>
-          <p className="text-xl text-gray-300 max-w-2xl mx-auto mb-10">
-            We deliver a "Golden Record" — a pre-validated, lender-ready loan package that includes borrower financials, a fixed-price contractor contract, and a professional appraisal-ready project scope. You approve with confidence.
-          </p>
-          <a href="#partner" className="inline-flex items-center gap-2 px-8 py-4 rounded-xl bg-gradient-to-r from-pink-600 to-purple-600 font-bold text-lg hover:opacity-90 transition-opacity group">
-            Become a Lending Partner <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" />
-          </a>
+          <div className="max-w-xl mx-auto mb-10">
+            <ul className="space-y-3 text-left">
+              {[
+                'Qualified borrowers + a "Golden Record" — borrower financials, fixed-price contract, appraisal-ready scope',
+                'You hold escrow and approve every draw; we never touch your funds',
+                'Higher project success rates, happier homeowners, fewer defaults',
+                'You approve with confidence',
+              ].map((item, i) => (
+                <li key={i} className="flex items-start gap-3">
+                  <CheckCircle size={18} className="text-emerald-400 mt-0.5 shrink-0" />
+                  <span className="text-gray-300 text-sm md:text-base">{item}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+            <a href="#partner" className="px-8 py-4 rounded-xl bg-gradient-to-r from-pink-600 to-purple-600 font-bold text-lg flex items-center justify-center gap-2 group hover:opacity-90 transition-opacity">
+              Become a Lending Partner <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" />
+            </a>
+            <a href="#how-partnership-works" className="px-8 py-4 rounded-xl border border-white/20 font-bold text-lg hover:bg-white/5 transition-colors">
+              See How It Works
+            </a>
+          </div>
         </div>
       </section>
 
@@ -120,6 +178,88 @@ export function ForLenders() {
         </div>
       </section>
 
+      {/* Consumer Engine / Lender value */}
+      <section className="bg-gradient-to-b from-[#0a0612] to-blue-900/10 border-y border-white/10">
+        <div className="max-w-6xl mx-auto py-20 px-4">
+          <div className="grid md:grid-cols-2 gap-12 md:gap-20 items-stretch">
+            <div className="flex flex-col">
+              <h2 className="text-2xl md:text-4xl font-bold text-white mb-6">
+                Our Consumer Engine: Turning vision into loan origination.
+              </h2>
+              <p className="text-gray-300 text-base md:text-lg leading-relaxed mb-4">
+                Our mission is simple: Make renovating a home as frictionless as buying a new one.
+              </p>
+              <p className="text-gray-300 text-base md:text-lg leading-relaxed mb-8">
+                We give consumers an interactive platform to visualize their project in 3D and instantly plan the financial reality of the build—so every file that reaches you is already grounded in clear scope and intent.
+              </p>
+              <ul className="space-y-3 mt-auto">
+                {['Qualified intent before application — $500 deposit and real pricing', 'Clear scope and fixed price before underwriting', 'Lender-ready file every time'].map((item, i) => (
+                  <li key={i} className="flex items-start gap-3 text-gray-300 text-sm md:text-base">
+                    <CheckCircle size={18} className="text-emerald-400 mt-0.5 shrink-0" />
+                    <span>{item}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+            <div className="space-y-8">
+              <div className="flex gap-4">
+                <div className="shrink-0 w-10 h-10 rounded-lg bg-white/10 flex items-center justify-center">
+                  <Filter size={20} className="text-pink-400" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-white mb-2">The Ultimate Filter</h3>
+                  <p className="text-gray-300 text-sm md:text-base leading-relaxed mb-2">
+                    Users must engage with accurate pricing and commit a $500 deposit for their PRD before moving forward.
+                  </p>
+                  <p className="text-gray-300 text-sm md:text-base leading-relaxed">
+                    Result: window-shoppers drop off; you only see serious buyers.
+                  </p>
+                </div>
+              </div>
+              <div className="flex gap-4">
+                <div className="shrink-0 w-10 h-10 rounded-lg bg-white/10 flex items-center justify-center">
+                  <Magnet size={20} className="text-pink-400" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-white mb-2">Eliminating Sticker Shock</h3>
+                  <p className="text-gray-300 text-sm md:text-base leading-relaxed mb-2">
+                    Borrowers see their exact monthly payment and ARV requirements before they ever apply.
+                  </p>
+                  <p className="text-gray-300 text-sm md:text-base leading-relaxed">
+                    The app handles borrower education so they arrive informed and ready.
+                  </p>
+                </div>
+              </div>
+              <div className="flex gap-4">
+                <div className="shrink-0 w-10 h-10 rounded-lg bg-white/10 flex items-center justify-center">
+                  <ClipboardList size={20} className="text-pink-400" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-white mb-2">Zero-Friction Contractor Quoting</h3>
+                  <p className="text-gray-300 text-sm md:text-base leading-relaxed mb-3">
+                    We eliminate project uncertainty so scope and cost are locked before the file reaches you.
+                  </p>
+                  <ul className="space-y-2 text-gray-300 text-sm md:text-base leading-relaxed">
+                    <li className="flex items-start gap-2">
+                      <span className="text-pink-400 mt-1.5 shrink-0 w-1.5 h-1.5 rounded-full bg-pink-400 block" aria-hidden />
+                      <span><strong className="text-gray-200">Single source of truth.</strong> The platform captures 100% of the inputs your underwriters and the builder need—no missing details.</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <span className="text-pink-400 mt-1.5 shrink-0 w-1.5 h-1.5 rounded-full bg-pink-400 block" aria-hidden />
+                      <span><strong className="text-gray-200">Itemized Statement of Work.</strong> Down-to-the-dollar SOW reflecting every homeowner design decision.</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <span className="text-pink-400 mt-1.5 shrink-0 w-1.5 h-1.5 rounded-full bg-pink-400 block" aria-hidden />
+                      <span><strong className="text-gray-200">99% pricing accuracy.</strong> Contractors can sign off immediately—no weeks of back-and-forth.</span>
+                    </li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* Traditional vs Golden Record */}
       <section className="py-20 px-4">
         <div className="max-w-5xl mx-auto">
@@ -127,7 +267,7 @@ export function ForLenders() {
           <div className="grid md:grid-cols-2 gap-6">
             <div className="bg-gray-900/50 rounded-2xl p-8 border border-red-500/20">
               <div className="text-red-400 font-bold uppercase text-xs tracking-widest mb-4">Traditional Renovation Loans</div>
-              {['Vague scopes — costs unknown at underwriting', 'Contractor disputes mid-project', 'Cost overruns passed to borrower', 'FHA 203(k): 90+ day process, HUD consultant required', 'Lender has no visibility after funding'].map(item => (
+              {['Vague scopes — costs unknown at underwriting', 'Contractor disputes mid-project', 'Cost overruns passed to borrower', 'Traditional FHA 203(k) & Fannie Homestyle: 90+ day process, expensive 3rd-party HUD consultants required.', 'Borrower stress and disputes increase default risk', 'Lender has no visibility after funding', "Often requires a 'two-close' process (construction loan refinanced into a permanent mortgage), doubling closing costs for the borrower.", 'Market is surrendered to a handful of slow, niche specialty lenders because traditional banks lack the infrastructure to manage draw risk.'].map(item => (
                 <div key={item} className="flex items-start gap-3 py-3 border-b border-white/5 last:border-0">
                   <XCircle size={16} className="text-red-500 mt-0.5 shrink-0" />
                   <span className="text-gray-300 text-sm">{item}</span>
@@ -135,8 +275,8 @@ export function ForLenders() {
               ))}
             </div>
             <div className="bg-gradient-to-b from-purple-900/40 to-pink-900/20 rounded-2xl p-8 border border-pink-500/30">
-              <div className="text-pink-400 font-bold uppercase text-xs tracking-widest mb-4">Renovation OS — Golden Record</div>
-              {['Fixed-price contract before underwriting begins', 'Vetted contractor — licensed, insured, accountable', 'SOW accuracy 95%+ before a dollar is funded', 'Target: 30 days from application to funding', 'Full milestone visibility throughout the project'].map(item => (
+              <div className="text-pink-400 font-bold uppercase text-xs tracking-widest mb-4">ExpandEase — Golden Record</div>
+              {['Fixed-price contract before underwriting begins', 'Vetted contractor — licensed, insured, accountable', 'SOW accuracy 95%+ before a dollar is funded', 'Enables you to offer a superior Portfolio ARV product that bypasses the red tape and mandatory 3rd-party HUD consultants required by FHA 203(k).', 'Signed scope = shared truth for all parties', 'Target: 30 days from application to funding', 'Full milestone + trade schedule visibility throughout'].map(item => (
                 <div key={item} className="flex items-start gap-3 py-3 border-b border-white/5 last:border-0">
                   <CheckCircle size={16} className="text-emerald-400 mt-0.5 shrink-0" />
                   <span className="text-gray-200 text-sm">{item}</span>
@@ -147,15 +287,44 @@ export function ForLenders() {
         </div>
       </section>
 
+      {/* What we've heard — quote slider */}
+      <section className="py-10 px-4 bg-white/5 border-y border-white/10">
+        <div className="max-w-4xl mx-auto">
+          <div className="flex items-center gap-3 justify-center mb-6">
+            <MessageSquare size={22} className="text-pink-400" />
+            <h2 className="text-2xl md:text-3xl font-bold text-center">What we've heard from the industry.</h2>
+          </div>
+          <p className="text-gray-400 text-sm text-center mb-6 max-w-2xl mx-auto">Brokers and lenders have told us why renovation lending feels like a tough sell. We listened — and it's why we built ExpandEase.</p>
+          <div className="bg-gray-900/50 rounded-2xl border border-white/10 overflow-hidden">
+            <div className="flex flex-col sm:flex-row items-center gap-6 p-6 md:p-8 min-h-[180px]">
+              <img src={INDUSTRY_QUOTES[quoteIndex].img} alt="" className="w-20 h-20 sm:w-24 sm:h-24 rounded-full object-cover border-2 border-white/10 shrink-0" />
+              <div className="flex-1 text-center sm:text-left">
+                <p className="text-gray-300 italic text-base md:text-lg mb-2">"{INDUSTRY_QUOTES[quoteIndex].quote}"</p>
+                <p className="text-gray-500 text-sm">— {INDUSTRY_QUOTES[quoteIndex].name}</p>
+              </div>
+            </div>
+            <div className="flex justify-center gap-2 pb-4">
+              {INDUSTRY_QUOTES.map((_, i) => (
+                <button key={i} onClick={() => setQuoteIndex(i)} aria-label={`Quote ${i + 1}`}
+                  className={`w-2 h-2 rounded-full transition-colors ${i === quoteIndex ? 'bg-pink-500' : 'bg-white/30 hover:bg-white/50'}`} />
+              ))}
+            </div>
+          </div>
+          <p className="text-white font-medium text-center mt-4 text-sm md:text-base max-w-2xl mx-auto">
+            That skepticism validates our mission. <span className="text-pink-400">The process is broken.</span> We remove the pain points: clear scope before underwriting, fixed price, one signed source of truth.
+          </p>
+        </div>
+      </section>
+
       {/* How Partnership Works */}
-      <section className="py-20 px-4 bg-gradient-to-b from-[#0a0612] to-purple-950/20">
+      <section id="how-partnership-works" className="py-20 px-4 bg-gradient-to-b from-[#0a0612] to-purple-950/20">
         <div className="max-w-5xl mx-auto">
           <h2 className="text-3xl md:text-5xl font-bold text-center mb-16">How the partnership works.</h2>
           <div className="grid md:grid-cols-3 gap-8">
             {[
               { n: '01', title: 'Integrate', desc: 'We add your institution to our lender network. Homeowners in your service area are directed to your financing products through our platform.' },
               { n: '02', title: 'Receive the Golden Record', desc: 'Every applicant arrives with a complete, lender-ready file: borrower financials, fixed-price contractor contract, full SOW, and property data.' },
-              { n: '03', title: 'Fund and Monitor', desc: 'Disburse on verified milestones. No lump-sum risk. Full project visibility through our platform from first draw to final inspection.' },
+              { n: '03', title: 'Fund and Monitor', desc: 'You hold escrow and disburse on verified milestones — no lump-sum risk. Full project visibility through our platform from first draw to final inspection. You stay in control of every draw.' },
             ].map(s => (
               <div key={s.n} className="relative">
                 <div className="text-7xl font-black text-white/5 absolute top-0 right-0">{s.n}</div>
@@ -171,7 +340,8 @@ export function ForLenders() {
       {/* Benefits */}
       <section className="py-20 px-4">
         <div className="max-w-5xl mx-auto">
-          <h2 className="text-3xl md:text-5xl font-bold text-center mb-12">Why lenders choose Renovation OS.</h2>
+          <h2 className="text-3xl md:text-5xl font-bold text-center mb-4">Why lenders choose ExpandEase.</h2>
+          <p className="text-center text-gray-400 max-w-2xl mx-auto mb-12">We bring leads. We increase project success rates and homeowner satisfaction. We de-risk every file with a fixed-price contract and full SOW before you underwrite.</p>
           <div className="grid md:grid-cols-2 gap-6">
             {BENEFITS.map(b => {
               const Icon = b.icon;
@@ -191,16 +361,28 @@ export function ForLenders() {
 
       {/* Objections */}
       <section className="py-20 px-4 bg-purple-950/20">
-        <div className="max-w-3xl mx-auto">
-          <h2 className="text-3xl md:text-4xl font-bold text-center mb-12">Common questions from compliance teams.</h2>
-          <div className="space-y-4">
-            {OBJECTIONS.map((o, i) => (
-              <div key={i} className="bg-white/5 rounded-xl border border-white/10 overflow-hidden">
-                <button onClick={() => setOpenObj(openObj === i ? null : i)} className="w-full flex items-center justify-between p-6 text-left">
-                  <span className="font-semibold text-gray-200 italic">{o.q}</span>
-                  {openObj === i ? <ChevronUp size={18} className="text-pink-400 shrink-0 ml-4" /> : <ChevronDown size={18} className="text-gray-400 shrink-0 ml-4" />}
-                </button>
-                {openObj === i && <div className="px-6 pb-6 text-gray-300 leading-relaxed border-t border-white/10 pt-4">{o.a}</div>}
+        <div className="max-w-6xl mx-auto">
+          <h2 className="text-3xl md:text-4xl font-bold text-center mb-4">Common questions from compliance &amp; underwriting.</h2>
+          <p className="text-center text-gray-400 mb-12">Escrow control, contractor risk, overruns, RESPA, volume, and what's in the Golden Record — straight answers.</p>
+          <div className="grid md:grid-cols-3 gap-8">
+            {OBJECTION_CATEGORIES.map((cat, catIdx) => (
+              <div key={catIdx} className="flex flex-col">
+                <h3 className="text-lg font-bold text-pink-400/90 mb-4 pb-2 border-b border-white/10">{cat.title}</h3>
+                <div className="space-y-3">
+                  {cat.items.map((o, itemIdx) => {
+                    const key = `${catIdx}-${itemIdx}`;
+                    const isOpen = openObj === key;
+                    return (
+                      <div key={key} className="bg-white/5 rounded-xl border border-white/10 overflow-hidden">
+                        <button onClick={() => setOpenObj(isOpen ? null : key)} className="w-full flex items-center justify-between p-4 text-left gap-2">
+                          <span className="font-semibold text-gray-200 italic text-sm leading-snug">{o.q}</span>
+                          {isOpen ? <ChevronUp size={16} className="text-pink-400 shrink-0" /> : <ChevronDown size={16} className="text-gray-400 shrink-0" />}
+                        </button>
+                        {isOpen && <div className="px-4 pb-4 pt-2 text-gray-400 leading-relaxed border-t border-white/10 text-sm"><p>{o.a}</p></div>}
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             ))}
           </div>
@@ -222,6 +404,7 @@ export function ForLenders() {
             </div>
           ) : (
             <form onSubmit={handleSubmit} className="space-y-5 bg-white/5 rounded-2xl border border-white/10 p-8">
+              <p className="text-gray-500 text-xs mb-4 italic">*This portal is for inbound partnership inquiries. If you are viewing a live demo, your ExpandEase representative will provide direct onboarding documentation.*</p>
               {[
                 { label: 'Institution Name', key: 'institution' as keyof FormData, placeholder: 'Desert Financial Credit Union' },
                 { label: 'Your Name', key: 'name' as keyof FormData, placeholder: 'Jane Smith' },
@@ -270,7 +453,7 @@ export function ForLenders() {
             <Link to="/" className="hover:text-white transition-colors">Home</Link>
             <Link to="/for-contractors" className="hover:text-white transition-colors">For Contractors</Link>
           </div>
-          <p className="text-xs text-gray-600">© 2025 ExpandEase. All rights reserved.</p>
+          <p className="text-xs text-gray-600">© 2026 ExpandEase. Built in Phoenix, AZ by successfully exited tech operators. All rights reserved.</p>
         </div>
       </footer>
     </div>

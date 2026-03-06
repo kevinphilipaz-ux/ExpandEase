@@ -1,5 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
+import { useProjectOptional } from '../context/ProjectContext';
+import { CADCheckoutModal } from '../components/CADCheckoutModal';
 import {
   Download,
   Share2,
@@ -35,85 +38,94 @@ interface RoomData {
 }
 // --- Data ---
 const ROOMS: RoomData[] = [
-{
-  id: 'master',
-  name: 'Master Suite',
-  image:
-  'https://images.unsplash.com/photo-1522771739844-6a9f6d5f14af?auto=format&fit=crop&w=1200&q=80',
-  features: [
-  'Vaulted Ceilings',
-  'Walk-in Closet',
-  'En-suite Spa Bath',
-  'Private Balcony Access']
+  {
+    id: 'master',
+    name: 'Master Suite',
+    image:
+      'https://images.unsplash.com/photo-1522771739844-6a9f6d5f14af?auto=format&fit=crop&w=1200&q=80',
+    features: [
+      'Vaulted Ceilings',
+      'Walk-in Closet',
+      'En-suite Spa Bath',
+      'Private Balcony Access']
 
-},
-{
-  id: 'kitchen',
-  name: "Chef's Kitchen",
-  image:
-  'https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?auto=format&fit=crop&w=1200&q=80',
-  features: [
-  'Waterfall Island',
-  'Custom Cabinetry',
-  'Smart Appliances',
-  "Butler's Pantry"]
+  },
+  {
+    id: 'kitchen',
+    name: "Chef's Kitchen",
+    image:
+      'https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?auto=format&fit=crop&w=1200&q=80',
+    features: [
+      'Waterfall Island',
+      'Custom Cabinetry',
+      'Smart Appliances',
+      "Butler's Pantry"]
 
-},
-{
-  id: 'greatroom',
-  name: 'Great Room',
-  image:
-  'https://images.unsplash.com/photo-1618221195710-dd6b41faaea6?auto=format&fit=crop&w=1200&q=80',
-  features: [
-  'Floor-to-Ceiling Windows',
-  'Feature Fireplace',
-  'Open Concept',
-  'Hardwood Floors']
+  },
+  {
+    id: 'greatroom',
+    name: 'Great Room',
+    image:
+      'https://images.unsplash.com/photo-1618221195710-dd6b41faaea6?auto=format&fit=crop&w=1200&q=80',
+    features: [
+      'Floor-to-Ceiling Windows',
+      'Feature Fireplace',
+      'Open Concept',
+      'Hardwood Floors']
 
-},
-{
-  id: 'garage',
-  name: 'Garage & ADU',
-  image:
-  'https://images.unsplash.com/photo-1486006920555-c77dcf18193c?auto=format&fit=crop&w=1200&q=80',
-  features: [
-  '3-Car Capacity',
-  'EV Charging',
-  'Upper Level Studio',
-  'Workshop Area']
+  },
+  {
+    id: 'garage',
+    name: 'Garage & ADU',
+    image:
+      'https://images.unsplash.com/photo-1486006920555-c77dcf18193c?auto=format&fit=crop&w=1200&q=80',
+    features: [
+      '3-Car Capacity',
+      'EV Charging',
+      'Upper Level Studio',
+      'Workshop Area']
 
-}];
+  }];
 
-const SPECS = [
-{
-  label: 'Bedrooms',
-  before: 3,
-  after: 5,
-  icon: BedDouble
-},
-{
-  label: 'Bathrooms',
-  before: 2,
-  after: 4.5,
-  icon: Bath
-},
-{
-  label: 'Sq Footage',
-  before: '2,100',
-  after: '3,850',
-  icon: Ruler
-},
-{
-  label: 'Garage',
-  before: '2-Car',
-  after: '3-Car + ADU',
-  icon: Car
-}];
+function buildSpecs(project: { property?: { beds?: number; baths?: number; sqft?: number }; wishlist?: { bedrooms?: number; bathrooms?: number } }) {
+  const prop = project?.property;
+  const wish = project?.wishlist;
+  const beforeBeds = prop?.beds ?? 3;
+  const beforeBaths = prop?.baths ?? 2;
+  const beforeSqft = prop?.sqft ?? 2100;
+  const afterBeds = wish?.bedrooms ?? beforeBeds;
+  const afterBaths = wish?.bathrooms ?? beforeBaths;
+  const afterSqft = beforeSqft + (afterBeds - beforeBeds) * 250 + (afterBaths - beforeBaths) * 100;
+  return [
+    { label: 'Bedrooms', before: beforeBeds, after: afterBeds, icon: BedDouble },
+    { label: 'Bathrooms', before: beforeBaths, after: afterBaths, icon: Bath },
+    { label: 'Sq Footage', before: beforeSqft.toLocaleString(), after: afterSqft.toLocaleString(), icon: Ruler },
+    { label: 'Garage', before: '2-Car', after: '3-Car + ADU', icon: Car }
+  ];
+}
 
 export function DesignPackage() {
+  const navigate = useNavigate();
+  const projectCtx = useProjectOptional();
+  const project = projectCtx?.project;
+  const projectName = useMemo(() => {
+    if (!project?.property?.address) return 'The Smith Residence';
+    const addr = project.property.address;
+    const firstPart = addr.split(',')[0]?.trim() || addr;
+    return firstPart ? `${firstPart} Residence` : 'Your Residence';
+  }, [project?.property?.address]);
+  const projectIdShort = project?.meta?.projectId ? project.meta.projectId.replace(/^EXP-/, '').slice(0, 8) + '-B' : '8492-B';
+  const specs = useMemo(() => buildSpecs(project ?? {}), [project]);
+  const totalCost = project?.financial?.totalCost ?? 415000;
+  const totalValue = project?.financial?.totalValue ?? 1650000;
+  const equityCreated = totalValue - totalCost;
+  const spaceAdded = project?.property && project?.wishlist
+    ? Math.max(0, ((project.wishlist.bedrooms ?? 0) - (project.property.beds ?? 0)) * 250 + ((project.wishlist.bathrooms ?? 0) - (project.property.baths ?? 0)) * 100)
+    : 1750;
   const [activeRoomIndex, setActiveRoomIndex] = useState(0);
   const [showBlueprint, setShowBlueprint] = useState(false);
   const [showNextSteps, setShowNextSteps] = useState(false);
+  const [showCADModal, setShowCADModal] = useState(false);
   const nextRoom = () => setActiveRoomIndex((prev) => (prev + 1) % ROOMS.length);
   const prevRoom = () =>
     setActiveRoomIndex((prev) => (prev - 1 + ROOMS.length) % ROOMS.length);
@@ -157,13 +169,12 @@ export function DesignPackage() {
                   className="flex flex-col items-center gap-2"
                 >
                   <div
-                    className={`w-10 h-10 md:w-12 md:h-12 rounded-full flex items-center justify-center transition-all ${
-                      step.status === 'completed'
+                    className={`w-10 h-10 md:w-12 md:h-12 rounded-full flex items-center justify-center transition-all ${step.status === 'completed'
                         ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/30'
                         : step.status === 'current'
-                        ? 'bg-white text-purple-900 shadow-lg shadow-white/20 ring-4 ring-white/20'
-                        : 'bg-white/10 text-purple-300 border border-white/20'
-                    }`}
+                          ? 'bg-white text-purple-900 shadow-lg shadow-white/20 ring-4 ring-white/20'
+                          : 'bg-white/10 text-purple-300 border border-white/20'
+                      }`}
                   >
                     {step.status === 'completed' ? (
                       <CheckCircle2 size={20} />
@@ -172,9 +183,8 @@ export function DesignPackage() {
                     )}
                   </div>
                   <span
-                    className={`text-[10px] md:text-xs font-medium uppercase tracking-wider ${
-                      step.status === 'current' ? 'text-white' : 'text-purple-300'
-                    }`}
+                    className={`text-[10px] md:text-xs font-medium uppercase tracking-wider ${step.status === 'current' ? 'text-white' : 'text-purple-300'
+                      }`}
                   >
                     {step.label}
                   </span>
@@ -199,21 +209,27 @@ export function DesignPackage() {
                 <Sparkles size={12} />
                 Your Custom Design
               </span>
-              <span className="text-purple-300 text-sm font-medium">Project #8492-B</span>
+              <span className="text-purple-300 text-sm font-medium">Project #{projectIdShort}</span>
             </div>
             <h1 className="text-3xl md:text-5xl font-bold text-white mb-2 tracking-tight">
-              The Smith Residence
+              {projectName}
             </h1>
             <p className="text-base md:text-lg text-purple-200/80 max-w-2xl leading-relaxed">
               Your custom expansion is ready. More space, more value, same neighborhood—designed specifically for your family's needs.
             </p>
           </div>
           <div className="flex flex-wrap gap-3">
-            <button className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 transition-all text-sm font-medium hover:scale-105 active:scale-95">
-              <Share2 size={16} /> Share Design
+            <button
+              onClick={() => navigate('/contractor-review')}
+              className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 transition-all text-sm font-medium hover:scale-105 active:scale-95"
+            >
+              <Share2 size={16} /> Share with Contractor
             </button>
-            <button className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-white text-purple-900 hover:bg-gray-100 font-bold transition-all text-sm shadow-xl shadow-purple-900/20 hover:scale-105 active:scale-95">
-              <Download size={18} /> Download PDF
+            <button
+              onClick={() => setShowCADModal(true)}
+              className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-400 hover:to-purple-400 text-white font-bold transition-all text-sm shadow-xl shadow-pink-500/20 hover:scale-105 active:scale-95"
+            >
+              <Sparkles size={18} /> Upgrade to 3D CAD
             </button>
           </div>
         </motion.header>
@@ -226,9 +242,9 @@ export function DesignPackage() {
           className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 mb-8"
         >
           {[
-            { label: 'Equity Created', value: '+$235K', sub: 'instant value add', valueClass: 'text-emerald-400', subClass: 'text-emerald-300/70', trend: '+18%' },
-            { label: 'Projected Value', value: '$1.65M', sub: 'after completion', valueClass: 'text-white', subClass: 'text-purple-300/70' },
-            { label: 'Space Added', value: '+1,750', unit: 'sq ft', sub: '83% more space', valueClass: 'text-amber-300', subClass: 'text-amber-200/70' },
+            { label: 'Equity Created', value: `+$${Math.round(equityCreated / 1000)}K`, sub: 'instant value add', valueClass: 'text-emerald-400', subClass: 'text-emerald-300/70', trend: '+18%' },
+            { label: 'Projected Value', value: totalValue >= 1e6 ? `$${(totalValue / 1e6).toFixed(2)}M` : `$${(totalValue / 1000).toFixed(0)}K`, sub: 'after completion', valueClass: 'text-white', subClass: 'text-purple-300/70' },
+            { label: 'Space Added', value: `+${spaceAdded.toLocaleString()}`, unit: ' sq ft', sub: 'more space', valueClass: 'text-amber-300', subClass: 'text-amber-200/70' },
             { label: 'Monthly Savings', value: '$4,885', sub: 'vs. buying new', valueClass: 'text-emerald-400', subClass: 'text-emerald-300/70', highlight: true }
           ].map((kpi, i) => (
             <motion.div
@@ -236,9 +252,8 @@ export function DesignPackage() {
               initial={{ opacity: 0, y: 12 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.4, delay: 0.2 + i * 0.06 }}
-              className={`relative bg-white/10 backdrop-blur-md rounded-2xl border p-4 md:p-5 text-center shadow-xl shadow-black/10 overflow-hidden group hover:bg-white/15 transition-all cursor-pointer ${
-                kpi.highlight ? 'border-emerald-500/40 ring-1 ring-emerald-500/20' : 'border-white/20'
-              }`}
+              className={`relative bg-white/10 backdrop-blur-md rounded-2xl border p-4 md:p-5 text-center shadow-xl shadow-black/10 overflow-hidden group hover:bg-white/15 transition-all cursor-pointer ${kpi.highlight ? 'border-emerald-500/40 ring-1 ring-emerald-500/20' : 'border-white/20'
+                }`}
             >
               {kpi.highlight && (
                 <div className="absolute top-0 right-0 w-16 h-16 bg-emerald-500/10 blur-2xl rounded-full -translate-y-1/2 translate-x-1/2" />
@@ -361,9 +376,8 @@ export function DesignPackage() {
                 <button
                   key={idx}
                   onClick={() => setActiveRoomIndex(idx)}
-                  className={`w-2 h-2 rounded-full transition-all ${
-                    activeRoomIndex === idx ? 'bg-pink-500 w-6' : 'bg-white/30 hover:bg-white/50'
-                  }`}
+                  className={`w-2 h-2 rounded-full transition-all ${activeRoomIndex === idx ? 'bg-pink-500 w-6' : 'bg-white/30 hover:bg-white/50'
+                    }`}
                 />
               ))}
             </div>
@@ -376,11 +390,10 @@ export function DesignPackage() {
                 <button
                   key={room.id}
                   onClick={() => setActiveRoomIndex(idx)}
-                  className={`flex-1 min-w-[100px] px-4 py-4 text-xs md:text-sm font-bold uppercase tracking-wider whitespace-nowrap transition-all ${
-                    activeRoomIndex === idx
+                  className={`flex-1 min-w-[100px] px-4 py-4 text-xs md:text-sm font-bold uppercase tracking-wider whitespace-nowrap transition-all ${activeRoomIndex === idx
                       ? 'bg-white/10 text-white border-b-2 border-pink-500'
                       : 'text-purple-300 hover:text-white hover:bg-white/5'
-                  }`}
+                    }`}
                 >
                   {room.name}
                 </button>
@@ -494,7 +507,7 @@ export function DesignPackage() {
                 Home Specifications
               </h3>
               <div className="grid grid-cols-2 gap-3">
-                {SPECS.map((spec, idx) => (
+                {specs.map((spec, idx) => (
                   <motion.div
                     key={spec.label}
                     initial={{ opacity: 0, y: 10 }}
@@ -533,15 +546,15 @@ export function DesignPackage() {
                 <div className="grid grid-cols-2 gap-3 mb-5">
                   <div className="bg-white/5 rounded-xl p-3 border border-white/5">
                     <p className="text-gray-400 text-[10px] uppercase tracking-wider">Construction Cost</p>
-                    <p className="text-xl font-mono font-bold text-white">$415K</p>
+                    <p className="text-xl font-mono font-bold text-white">${(totalCost / 1000).toFixed(0)}K</p>
                   </div>
                   <div className="bg-white/5 rounded-xl p-3 border border-white/5">
                     <p className="text-gray-400 text-[10px] uppercase tracking-wider">New Home Value</p>
-                    <p className="text-xl font-mono font-bold text-white">$1.65M</p>
+                    <p className="text-xl font-mono font-bold text-white">{totalValue >= 1e6 ? `$${(totalValue / 1e6).toFixed(2)}M` : `$${(totalValue / 1000).toFixed(0)}K`}</p>
                   </div>
                   <div className="bg-emerald-500/10 rounded-xl p-3 border border-emerald-500/20">
                     <p className="text-emerald-400/80 text-[10px] uppercase tracking-wider">Equity Created</p>
-                    <p className="text-xl font-mono font-bold text-emerald-400">+$235K</p>
+                    <p className="text-xl font-mono font-bold text-emerald-400">+${(equityCreated / 1000).toFixed(0)}K</p>
                   </div>
                   <div className="bg-white/5 rounded-xl p-3 border border-white/5">
                     <p className="text-gray-400 text-[10px] uppercase tracking-wider">New Payment</p>
@@ -603,10 +616,10 @@ export function DesignPackage() {
         >
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             {[
-              { icon: Shield, label: 'Licensed & Insured', sub: 'Full coverage protection' },
+              { icon: CheckCircle2, label: 'Fixed-Price Scope', sub: 'Locked before work starts' },
               { icon: Clock, label: '6-Month Timeline', sub: 'From permit to move-in' },
-              { icon: Users, label: '500+ Projects', sub: 'Successfully completed' },
-              { icon: CheckCircle2, label: 'Fixed Price', sub: 'No hidden costs' }
+              { icon: TrendingUp, label: 'Borrow on Completed Value', sub: 'Finance the after value' },
+              { icon: Shield, label: 'Clear SOW', sub: 'No hidden costs' }
             ].map((item, idx) => (
               <motion.div
                 key={item.label}
@@ -681,8 +694,11 @@ export function DesignPackage() {
 
             {!showNextSteps && (
               <div className="flex gap-3 pt-4 border-t border-white/10">
-                <button className="flex-1 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold shadow-lg shadow-emerald-900/30 transition-all hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-2">
-                  <HardHat size={18} /> Start Construction
+                <button
+                  onClick={() => navigate('/contractor-review')}
+                  className="flex-1 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold shadow-lg shadow-emerald-900/30 transition-all hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-2"
+                >
+                  <HardHat size={18} /> Create Final SOW
                 </button>
                 <button className="flex-1 py-3 rounded-xl bg-white/10 hover:bg-white/20 text-white font-medium border border-white/20 transition-all flex items-center justify-center gap-2">
                   <MessageSquare size={18} /> Ask a Question
@@ -708,34 +724,34 @@ export function DesignPackage() {
       {/* --- Blueprint Modal --- */}
       <AnimatePresence>
         {showBlueprint &&
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
             <motion.div
-            initial={{
-              opacity: 0
-            }}
-            animate={{
-              opacity: 1
-            }}
-            exit={{
-              opacity: 0
-            }}
-            className="absolute inset-0 bg-black/80 backdrop-blur-sm"
-            onClick={() => setShowBlueprint(false)} />
+              initial={{
+                opacity: 0
+              }}
+              animate={{
+                opacity: 1
+              }}
+              exit={{
+                opacity: 0
+              }}
+              className="absolute inset-0 bg-black/80 backdrop-blur-sm"
+              onClick={() => setShowBlueprint(false)} />
 
             <motion.div
-            initial={{
-              opacity: 0,
-              scale: 0.95
-            }}
-            animate={{
-              opacity: 1,
-              scale: 1
-            }}
-            exit={{
-              opacity: 0,
-              scale: 0.95
-            }}
-            className="relative w-full max-w-5xl bg-[#0f172a] border border-blue-500/30 rounded-2xl overflow-hidden shadow-2xl">
+              initial={{
+                opacity: 0,
+                scale: 0.95
+              }}
+              animate={{
+                opacity: 1,
+                scale: 1
+              }}
+              exit={{
+                opacity: 0,
+                scale: 0.95
+              }}
+              className="relative w-full max-w-5xl bg-[#0f172a] border border-blue-500/30 rounded-2xl overflow-hidden shadow-2xl">
 
               {/* Modal Header */}
               <div className="flex justify-between items-center p-4 border-b border-blue-500/20 bg-blue-900/20">
@@ -746,8 +762,8 @@ export function DesignPackage() {
                   </h3>
                 </div>
                 <button
-                onClick={() => setShowBlueprint(false)}
-                className="p-2 hover:bg-white/10 rounded-full text-gray-400 hover:text-white transition-colors">
+                  onClick={() => setShowBlueprint(false)}
+                  className="p-2 hover:bg-white/10 rounded-full text-gray-400 hover:text-white transition-colors">
 
                   <X size={20} />
                 </button>
@@ -757,14 +773,14 @@ export function DesignPackage() {
               <div className="relative h-[600px] bg-[#0B1121] p-8 overflow-auto flex items-center justify-center">
                 {/* Grid Pattern */}
                 <div
-                className="absolute inset-0 opacity-20 pointer-events-none"
-                style={{
-                  backgroundImage: `
+                  className="absolute inset-0 opacity-20 pointer-events-none"
+                  style={{
+                    backgroundImage: `
                       linear-gradient(#1e3a8a 1px, transparent 1px),
                       linear-gradient(90deg, #1e3a8a 1px, transparent 1px)
                     `,
-                  backgroundSize: '40px 40px'
-                }} />
+                    backgroundSize: '40px 40px'
+                  }} />
 
 
                 {/* Placeholder Blueprint Graphic */}
@@ -809,6 +825,8 @@ export function DesignPackage() {
           </div>
         }
       </AnimatePresence>
+
+      <CADCheckoutModal isOpen={showCADModal} onClose={() => setShowCADModal(false)} />
     </div>);
 
 }

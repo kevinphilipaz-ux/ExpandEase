@@ -21,6 +21,7 @@ import {
   Zap
 } from 'lucide-react';
 import { useOnboarding } from '../context/OnboardingContext';
+import { useProjectOptional } from '../context/ProjectContext';
 import { useGooglePlacesAutocomplete } from '../hooks/useGooglePlacesAutocomplete';
 
 const GOALS = [
@@ -44,23 +45,29 @@ const SOCIAL_PROOF = [
 ];
 
 const TRUST_BADGES = [
-  { icon: Shield, label: 'Licensed & Insured' },
   { icon: CheckCircle2, label: 'Fixed-Price Guarantee' },
   { icon: Clock3, label: 'On-Time Delivery' },
+  { icon: Star, label: 'See Numbers First' },
 ];
 
 export function OnboardingFlow() {
   const navigate = useNavigate();
   const location = useLocation();
   const { data, updateData } = useOnboarding();
+  const projectCtx = useProjectOptional();
   const addressFromState = (location.state as { address?: string } | null)?.address?.trim() || '';
-  const initialAddress = addressFromState || data.address || '';
+  const initialAddress = addressFromState || data.address || projectCtx?.project?.property?.address || '';
+  const initialFirstName = projectCtx?.project?.homeowner?.firstName || data.firstName || '';
   const [formData, setFormData] = useState({
+    firstName: initialFirstName || '',
+    email: projectCtx?.project?.homeowner?.email ?? '',
+    phone: projectCtx?.project?.homeowner?.phone ?? '',
     address: initialAddress,
-    income: data.income || 150000,
-    goal: data.goal || '',
-    mortgageRate: data.mortgageRate || 3.5,
-    timeline: data.timeline || '',
+    income: (data.income || projectCtx?.project?.onboarding?.income) ?? 150000,
+    goal: data.goal || projectCtx?.project?.onboarding?.goal || '',
+    mortgageRate: data.mortgageRate ?? projectCtx?.project?.onboarding?.mortgageRate ?? 3.5,
+    timeline: data.timeline || projectCtx?.project?.onboarding?.timeline || '',
+    occupancy: (projectCtx?.project?.onboarding?.occupancy ?? 'primary') as 'primary' | 'secondary' | 'investment',
   });
   const [addressFieldValid, setAddressFieldValid] = useState(initialAddress.length > 5);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -84,13 +91,13 @@ export function OnboardingFlow() {
     }
   }, [addressFromState, updateData]);
 
-  // Calculate form progress
+  // Calculate form progress (firstName + address + goal + timeline = 100%)
   useEffect(() => {
     let progress = 0;
+    if (formData.firstName.trim().length > 0) progress += 25;
     if (addressFieldValid) progress += 25;
     if (formData.goal) progress += 25;
     if (formData.timeline) progress += 25;
-    if (formData.income > 0) progress += 25;
     setFormProgress(progress);
   }, [formData, addressFieldValid]);
 
@@ -104,17 +111,42 @@ export function OnboardingFlow() {
 
   const handleSubmit = async () => {
     setIsSubmitting(true);
+    const addressTrimmed = formData.address.trim();
     updateData({
-      ...formData,
-      address: formData.address.trim(),
+      firstName: formData.firstName.trim(),
+      address: addressTrimmed,
+      goal: formData.goal,
+      timeline: formData.timeline,
+      income: formData.income,
+      mortgageRate: formData.mortgageRate,
     });
+    // Persist to project so Design Package, Contractor Review, and partners have one source of truth
+    if (projectCtx) {
+      projectCtx.updateProject({
+        homeowner: {
+          ...projectCtx.project.homeowner,
+          firstName: formData.firstName.trim(),
+          email: formData.email.trim() || undefined,
+          phone: formData.phone.trim() || undefined,
+        },
+        property: { ...projectCtx.project.property, address: addressTrimmed },
+        onboarding: {
+          ...projectCtx.project.onboarding,
+          goal: formData.goal,
+          timeline: formData.timeline,
+          income: formData.income,
+          mortgageRate: formData.mortgageRate,
+          occupancy: formData.occupancy,
+        },
+      });
+    }
 
     // Simulate processing
     await new Promise(resolve => setTimeout(resolve, 1500));
     navigate('/analysis');
   };
 
-  const isFormValid = addressFieldValid && formData.goal && formData.timeline;
+  const isFormValid = formData.firstName.trim().length > 0 && addressFieldValid && formData.goal && formData.timeline;
 
   return (
     <div className="min-h-screen w-full bg-gradient-to-br from-[#0a0612] via-[#1a0e2e] to-[#2d1b4e] text-white overflow-x-hidden">
@@ -137,12 +169,12 @@ export function OnboardingFlow() {
           </div>
           <div className="hidden md:flex items-center gap-6 text-sm text-gray-400">
             <span className="flex items-center gap-2">
-              <Users size={16} />
-              15,000+ homeowners
+              <Star size={16} />
+              See numbers first
             </span>
             <span className="flex items-center gap-2">
               <Shield size={16} />
-              Licensed & Insured
+              Fixed-price guarantee
             </span>
           </div>
         </header>
@@ -225,6 +257,76 @@ export function OnboardingFlow() {
               </div>
 
               <form className="space-y-6" onSubmit={(e) => e.preventDefault()}>
+                {/* First name — for personalization and defensible homeowner identity */}
+                <div>
+                  <label className="text-gray-400 text-xs uppercase tracking-wider font-bold mb-3 block" htmlFor="first-name-onboarding">
+                    Your first name
+                  </label>
+                  <input
+                    id="first-name-onboarding"
+                    type="text"
+                    value={formData.firstName}
+                    onChange={(e) => setFormData(prev => ({ ...prev, firstName: e.target.value.trim() || e.target.value }))}
+                    placeholder="e.g. Alex"
+                    className="w-full px-4 py-4 rounded-xl bg-gray-900/50 border border-white/20 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-pink-500/50 focus:border-pink-500/50 transition-all"
+                    autoComplete="given-name"
+                  />
+                  <p className="text-purple-300/70 text-xs mt-1.5">Used to personalize your plan and on documents for contractors and lenders.</p>
+                </div>
+
+                {/* Email & phone — optional, for contractor/lender contact */}
+                <div className="grid md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-gray-400 text-xs uppercase tracking-wider font-bold mb-2 block" htmlFor="email-onboarding">Email (optional)</label>
+                    <input
+                      id="email-onboarding"
+                      type="email"
+                      value={formData.email}
+                      onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
+                      placeholder="you@example.com"
+                      className="w-full px-4 py-3 rounded-xl bg-gray-900/50 border border-white/20 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-pink-500/50"
+                      autoComplete="email"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-gray-400 text-xs uppercase tracking-wider font-bold mb-2 block" htmlFor="phone-onboarding">Phone (optional)</label>
+                    <input
+                      id="phone-onboarding"
+                      type="tel"
+                      value={formData.phone}
+                      onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
+                      placeholder="(555) 123-4567"
+                      className="w-full px-4 py-3 rounded-xl bg-gray-900/50 border border-white/20 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-pink-500/50"
+                      autoComplete="tel"
+                    />
+                  </div>
+                </div>
+                <p className="text-purple-300/70 text-xs -mt-2">Used by contractors and lenders to reach you. Skip if you prefer.</p>
+
+                {/* Occupancy — for lender (owner-occupied vs investment) */}
+                <div>
+                  <label className="text-gray-400 text-xs uppercase tracking-wider font-bold mb-2 block">Will this be your primary residence?</label>
+                  <div className="flex flex-wrap gap-2">
+                    {[
+                      { value: 'primary' as const, label: 'Yes, primary residence' },
+                      { value: 'secondary' as const, label: 'Secondary / vacation' },
+                      { value: 'investment' as const, label: 'Investment property' },
+                    ].map((opt) => (
+                      <button
+                        key={opt.value}
+                        type="button"
+                        onClick={() => setFormData(prev => ({ ...prev, occupancy: opt.value }))}
+                        className={`px-4 py-2.5 rounded-xl border text-sm font-medium transition-all ${
+                          formData.occupancy === opt.value ? 'bg-pink-500/20 border-pink-500 text-white' : 'bg-gray-900/50 border-white/10 text-purple-200 hover:bg-white/10'
+                        }`}
+                      >
+                        {opt.label}
+                      </button>
+                    ))}
+                  </div>
+                  <p className="text-purple-300/70 text-xs mt-1.5">Lenders use this for loan eligibility. Most homeowners select primary.</p>
+                </div>
+
                 {/* Property Address: show address + small edit control; full input only when editing or no address yet */}
                 <div className="address-input-wrap relative z-[100] overflow-visible">
                   <label className="text-gray-400 text-xs uppercase tracking-wider font-bold mb-3 block" htmlFor="address-onboarding-flow">

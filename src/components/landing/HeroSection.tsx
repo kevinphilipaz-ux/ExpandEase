@@ -47,7 +47,7 @@ export function HeroSection() {
                   </div>
                 )}
               </div>
-              <span>Trusted by 5,000+ homeowners</span>
+              <span>See your numbers before you commit</span>
             </div>
           </div>
         </div>

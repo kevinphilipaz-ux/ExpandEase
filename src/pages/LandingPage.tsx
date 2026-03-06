@@ -3,6 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { WaitlistSection } from '../components/landing/WaitlistSection';
 import { motion } from 'framer-motion';
 import { useOnboarding } from '../context/OnboardingContext';
+import { useProjectOptional } from '../context/ProjectContext';
 import { useGooglePlacesAutocomplete } from '../hooks/useGooglePlacesAutocomplete';
 import { usePropertyData } from '../hooks/usePropertyData';
 import {
@@ -19,7 +20,8 @@ import {
   Building2,
   Calendar,
   X,
-  Check
+  Check,
+  MessageSquare
 } from 'lucide-react';
 
 const TESTIMONIALS = [
@@ -47,10 +49,10 @@ const TESTIMONIALS = [
 ];
 
 const TRUST_LOGOS = [
-  "Licensed & Insured",
-  "BBB A+ Rated",
-  "NARI Member",
-  "EPA Certified"
+  "Fixed-Price Scope",
+  "Borrow on Completed Value",
+  "Keep Your Low Rate",
+  "See Numbers First"
 ];
 
 const STATS = [
@@ -60,14 +62,29 @@ const STATS = [
   { value: "Your Timeline", label: "Plan at Your Pace", icon: Calendar },
 ];
 
+const INDUSTRY_QUOTES = [
+  { quote: 'Have you seen the percentage of people who get divorced during a renovation?', name: 'Mortgage broker', img: 'https://images.unsplash.com/photo-1560250097-0b93528c311a?w=200&h=200&fit=crop&facepad=2' },
+  { quote: 'Your wife will see how it looks midway through and hate it forever.', name: 'Lender', img: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=200&h=200&fit=crop&facepad=2' },
+  { quote: 'Why not just buy a new house?', name: 'Broker', img: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200&h=200&fit=crop&facepad=2' },
+  { quote: "Winning over the renovation customer — that's a very big hill to climb.", name: 'Director, Business Dev', img: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=200&h=200&fit=crop&facepad=2' },
+  { quote: 'Renovations cause marital strain; the process is so inherently unpleasant that customers may stay dissatisfied even after completion.', name: 'Industry veteran', img: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=200&h=200&fit=crop&facepad=2' },
+];
+
 export function LandingPage() {
   const navigate = useNavigate();
   const { updateData } = useOnboarding();
+  const projectCtx = useProjectOptional();
   const [address, setAddress] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [homeValue, setHomeValue] = useState(750000);
   const [renovationBudget, setRenovationBudget] = useState(200000);
+  const [quoteIndex, setQuoteIndex] = useState(0);
   const addressContainerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const t = setInterval(() => setQuoteIndex(i => (i + 1) % INDUSTRY_QUOTES.length), 5000);
+    return () => clearInterval(t);
+  }, []);
 
   const { subject, loading: propertyLoading } = usePropertyData(address.trim().length >= 5 ? address : '');
 
@@ -98,6 +115,13 @@ export function LandingPage() {
     }
     updateData({ address: addressToUse });
     setAddress(addressToUse);
+    // Persist to project for CAD/contractor/lender — single source of truth
+    if (projectCtx) {
+      projectCtx.updateProject({
+        property: { ...projectCtx.project.property, address: addressToUse },
+        onboarding: { ...projectCtx.project.onboarding, estimatedRenovationBudget: renovationBudget },
+      });
+    }
     await new Promise(resolve => setTimeout(resolve, 800));
     navigate('/onboarding', { state: { address: addressToUse } });
   };
@@ -136,11 +160,11 @@ export function LandingPage() {
           <div className="hidden md:flex items-center gap-6 text-sm text-gray-400">
             <span className="flex items-center gap-2">
               <Shield size={14} className="text-emerald-400" />
-              Licensed & Insured
+              Fixed-Price Guarantee
             </span>
             <span className="flex items-center gap-2">
-              <Users size={14} className="text-blue-400" />
-              15,000+ Happy Homeowners
+              <Zap size={14} className="text-blue-400" />
+              See Your Numbers First
             </span>
           </div>
           <button 
@@ -193,8 +217,11 @@ export function LandingPage() {
                 Keep your low mortgage rate. Keep your neighborhood. Transform your home into your dream space.
               </p>
 
-              <p className="text-gray-400 mb-8 max-w-lg">
+              <p className="text-gray-400 mb-4 max-w-lg">
                 Moving costs $60K+ in fees and you'd trade your 3% rate for 7%. See how much wealth you can build by renovating instead.
+              </p>
+              <p className="text-gray-500 text-sm italic mb-8 max-w-lg">
+                Heard it before? "Just buy a new house." "Renovations wreck marriages." We get it — and that's why we built a process that removes the chaos: clear scope, fixed price, one source of truth.
               </p>
 
               {/* Social Proof */}
@@ -216,7 +243,7 @@ export function LandingPage() {
                       <Star key={star} size={14} className="text-yellow-400 fill-yellow-400" />
                     ))}
                   </div>
-                  <p className="text-sm text-gray-400">Trusted by 15,000+ homeowners</p>
+                  <p className="text-sm text-gray-400">See your renovation potential before you commit</p>
                 </div>
               </div>
 
@@ -406,6 +433,35 @@ export function LandingPage() {
         </div>
       </section>
 
+      {/* What We've Heard — broker skepticism reframed (quote slider) */}
+      <section className="py-20 px-4 bg-gradient-to-b from-[#0a0612] to-purple-950/20">
+        <div className="max-w-4xl mx-auto">
+          <div className="flex items-center gap-3 justify-center mb-6">
+            <MessageSquare size={22} className="text-pink-400" />
+            <h2 className="text-3xl md:text-4xl font-bold text-center">We've heard it before.</h2>
+          </div>
+          <p className="text-gray-400 text-center mb-6 max-w-2xl mx-auto">From mortgage brokers and lenders — and we get it. That's why we built this.</p>
+          <div className="bg-gray-900/50 rounded-2xl border border-white/10 overflow-hidden">
+            <div className="flex flex-col sm:flex-row items-center gap-6 p-6 md:p-8 min-h-[180px]">
+              <img src={INDUSTRY_QUOTES[quoteIndex].img} alt="" className="w-20 h-20 sm:w-24 sm:h-24 rounded-full object-cover border-2 border-white/10 shrink-0" />
+              <div className="flex-1 text-center sm:text-left">
+                <p className="text-gray-300 italic text-base md:text-lg mb-2">"{INDUSTRY_QUOTES[quoteIndex].quote}"</p>
+                <p className="text-gray-500 text-sm">— {INDUSTRY_QUOTES[quoteIndex].name}</p>
+              </div>
+            </div>
+            <div className="flex justify-center gap-2 pb-4">
+              {INDUSTRY_QUOTES.map((_, i) => (
+                <button key={i} onClick={() => setQuoteIndex(i)} aria-label={`Quote ${i + 1}`}
+                  className={`w-2 h-2 rounded-full transition-colors ${i === quoteIndex ? 'bg-pink-500' : 'bg-white/30 hover:bg-white/50'}`} />
+              ))}
+            </div>
+          </div>
+          <p className="text-white font-medium text-center mt-4 text-sm md:text-base max-w-2xl mx-auto">
+            That skepticism is exactly the point. <span className="text-pink-400">The process is broken.</span> We're fixing it — with clear scope, fixed price, and one source of truth before a single dollar is funded.
+          </p>
+        </div>
+      </section>
+
       {/* How It Works */}
       <section className="py-20 px-4 bg-gradient-to-b from-[#0a0612] to-purple-950/30">
         <div className="max-w-6xl mx-auto">
@@ -509,7 +565,7 @@ export function LandingPage() {
             Ready to Unlock Your Home's Potential?
           </h2>
           <p className="text-xl text-gray-300 mb-8 max-w-2xl mx-auto">
-            Join 15,000+ homeowners who discovered the smarter way to get their dream home.
+            Discover the smarter way to get your dream home—without moving. Get your free analysis.
           </p>
           <button
             onClick={handleGetStarted}

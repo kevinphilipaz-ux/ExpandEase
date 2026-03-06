@@ -12,6 +12,7 @@ import {
   Save,
   ChevronRight
 } from 'lucide-react';
+import { useProjectOptional } from './context/ProjectContext';
 import { PropertyOverview } from './components/PropertyOverview';
 import { PropertyWishlist } from './components/PropertyWishlist';
 import { FinancialAnalysis } from './components/FinancialAnalysis';
@@ -26,6 +27,8 @@ interface SectionProgress {
 }
 
 export function App() {
+  const projectCtx = useProjectOptional();
+  const project = projectCtx?.project;
   const [activeSection, setActiveSection] = useState<string>('property');
   const [saved, setSaved] = useState(true);
   const [progress, setProgress] = useState<SectionProgress>({
@@ -34,6 +37,13 @@ export function App() {
     financial: 0,
     feasibility: 0
   });
+
+  const estCost = project?.financial?.totalCost ?? 575000;
+  const newValue = project?.financial?.totalValue ?? 3640000;
+  const monthlyPayment = project?.financial?.totalCost
+    ? Math.round(project.financial.totalCost * 0.0065) // ~30-yr payment estimate
+    : 3850;
+  const formatEst = (n: number) => n >= 1000000 ? `$${(n/1e6).toFixed(2)}M` : `$${(n/1000).toFixed(0)}K`;
 
   // Auto-save indicator
   useEffect(() => {
@@ -208,6 +218,8 @@ export function App() {
                     key={section.id}
                     onProgressUpdate={(value: number) => handleProgressUpdate(section.id as keyof SectionProgress, value)}
                     isActive={true}
+                    initialBedrooms={project?.property?.beds}
+                    initialBathrooms={project?.property?.baths}
                     onFinishWishlist={nextSection ? () => setActiveSection(nextSection.id) : undefined}
                     nextSectionLabel={nextSection?.label ?? 'Analysis'}
                   />
@@ -241,17 +253,17 @@ export function App() {
           <div className="hidden md:flex items-center justify-center gap-6 text-sm flex-1 order-1 sm:order-2">
             <div className="text-center">
               <p className="text-purple-300 text-xs">Est. Cost</p>
-              <p className="font-bold text-white">$575K</p>
+              <p className="font-bold text-white">{formatEst(estCost)}</p>
             </div>
             <div className="w-px h-8 bg-white/20" />
             <div className="text-center">
               <p className="text-purple-300 text-xs">New Value</p>
-              <p className="font-bold text-emerald-400">$3.64M</p>
+              <p className="font-bold text-emerald-400">{formatEst(newValue)}</p>
             </div>
             <div className="w-px h-8 bg-white/20" />
             <div className="text-center">
               <p className="text-purple-300 text-xs">Monthly</p>
-              <p className="font-bold text-white">$3,850</p>
+              <p className="font-bold text-white">${monthlyPayment.toLocaleString()}</p>
             </div>
           </div>
 

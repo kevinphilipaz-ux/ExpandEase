@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { motion } from 'framer-motion';
+import { useProjectOptional } from '../context/ProjectContext';
 import {
   TrendingUp,
   TrendingDown,
@@ -61,16 +62,35 @@ function getRoiTier(roiPct: number): 'high' | 'medium' | 'low' {
 }
 
 export function FinancialAnalysis({ onProgressUpdate }: FinancialAnalysisProps) {
+  const projectCtx = useProjectOptional();
+  const fin = projectCtx?.project?.financial;
   const [lineItems, setLineItems] = useState<LineItem[]>(() => DEFAULT_LINE_ITEMS.map((i) => ({ ...i })));
   const [enabledIds, setEnabledIds] = useState<Set<string>>(() => new Set(lineItems.map((i) => i.id)));
-  const [monthlyIncome, setMonthlyIncome] = useState(17000);
-  const [monthlyDebts, setMonthlyDebts] = useState(4500);
-  const [targetBudget, setTargetBudget] = useState<number | null>(null);
+  const [monthlyIncome, setMonthlyIncome] = useState(fin?.monthlyIncome ?? 17000);
+  const [monthlyDebts, setMonthlyDebts] = useState(fin?.monthlyDebts ?? 4500);
+  const [targetBudget, setTargetBudget] = useState<number | null>(fin?.targetBudget ?? null);
+  const [existingMortgageBalance, setExistingMortgageBalance] = useState<number | ''>(fin?.existingMortgageBalance ?? '');
   const [paymentSlider, setPaymentSlider] = useState(0); // extra $/month user is willing to consider
 
   useEffect(() => {
     onProgressUpdate?.(100);
   }, [onProgressUpdate]);
+
+  // Persist affordability inputs to project for lender/contractor defensibility
+  useEffect(() => {
+    if (!projectCtx) return;
+    projectCtx.updateProject({
+      financial: {
+        ...projectCtx.project.financial,
+        monthlyIncome,
+        monthlyDebts,
+        targetBudget: targetBudget ?? undefined,
+        existingMortgageBalance: typeof existingMortgageBalance === 'number' ? existingMortgageBalance : undefined,
+        enabledLineItemIds: Array.from(enabledIds),
+      },
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- projectCtx is stable; we only persist when user inputs change
+  }, [monthlyIncome, monthlyDebts, targetBudget, existingMortgageBalance, enabledIds]);
 
   const toggleItem = (id: string) => {
     setEnabledIds((prev) => {
@@ -370,6 +390,23 @@ export function FinancialAnalysis({ onProgressUpdate }: FinancialAnalysisProps) 
                 />
               </div>
             </div>
+            <div className="flex justify-between items-center gap-4">
+              <label className="text-purple-300 text-sm">Existing mortgage balance (optional)</label>
+              <div className="flex items-center">
+                <span className="text-gray-500 font-mono mr-1">$</span>
+                <input
+                  type="number"
+                  value={existingMortgageBalance}
+                  onChange={(e) => {
+                    const v = e.target.value.replace(/\D/g, '');
+                    setExistingMortgageBalance(v === '' ? '' : Math.max(0, parseInt(v, 10) || 0));
+                  }}
+                  placeholder="For lender"
+                  className="w-32 px-2 py-1.5 rounded-lg bg-white/10 border border-white/20 text-white font-mono text-sm focus:outline-none focus:ring-2 focus:ring-purple-400/50 placeholder-purple-400/50"
+                />
+              </div>
+            </div>
+            <p className="text-purple-300/70 text-xs -mt-2">Lenders use this for eligibility. Leave blank if unknown.</p>
           </div>
           <div className="space-y-3">
             <div className="flex justify-between items-center p-3 rounded-lg bg-white/5 border border-white/10">

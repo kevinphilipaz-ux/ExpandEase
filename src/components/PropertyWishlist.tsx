@@ -1,5 +1,6 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useProjectOptional } from '../context/ProjectContext';
 import {
   Home,
   ChefHat,
@@ -65,6 +66,119 @@ const CATEGORIES: CategoryConfig[] = [
   { id: 'outdoor', label: 'Outdoor', icon: Trees, description: 'Yard, pool & landscaping' },
   { id: 'systems', label: 'Systems', icon: WrenchIcon, description: 'HVAC, electrical & plumbing' },
 ];
+
+/** Approximate cost and ROI per component — used for running total and per-item labels. Directional estimates. */
+const COMPONENT_ESTIMATES: Record<string, { cost: number; roi: number }> = {
+  // Room features
+  'Walk-in Closet': { cost: 8500, roi: 0.95 },
+  'En-suite Bath': { cost: 28000, roi: 0.88 },
+  'Sitting Area': { cost: 6000, roi: 0.75 },
+  'Ceiling Fan': { cost: 800, roi: 0.7 },
+  'Bay Window': { cost: 4500, roi: 0.85 },
+  'Balcony Access': { cost: 12000, roi: 0.8 },
+  'Vaulted Ceiling': { cost: 15000, roi: 0.9 },
+  'Hardwood Floors': { cost: 9000, roi: 1.0 },
+  // Kitchen features
+  'Gas Range': { cost: 2500, roi: 0.85 },
+  'Double Oven': { cost: 4000, roi: 0.8 },
+  'French Door Fridge': { cost: 3500, roi: 0.75 },
+  'Dishwasher Drawer': { cost: 1200, roi: 0.7 },
+  'Wine Cooler': { cost: 2200, roi: 0.6 },
+  'Pot Filler': { cost: 900, roi: 0.75 },
+  'Island with Seating': { cost: 12000, roi: 0.95 },
+  'Walk-in Pantry': { cost: 15000, roi: 0.9 },
+  'Under-cabinet Lighting': { cost: 600, roi: 0.8 },
+  'Pot Rack': { cost: 400, roi: 0.5 },
+  'Farm Sink': { cost: 1800, roi: 0.85 },
+  'Garbage Disposal': { cost: 400, roi: 0.6 },
+  // Bathroom features
+  'Rain Shower': { cost: 1800, roi: 0.85 },
+  'Freestanding Tub': { cost: 4500, roi: 0.8 },
+  'Double Vanity': { cost: 3500, roi: 0.9 },
+  'Smart Toilet': { cost: 2200, roi: 0.7 },
+  'Vessel Sinks': { cost: 1200, roi: 0.75 },
+  'Heated Towel Bar': { cost: 500, roi: 0.65 },
+  'Heated Floors': { cost: 2800, roi: 0.85 },
+  'Subway Tile': { cost: 1500, roi: 0.8 },
+  'Mosaic Accent': { cost: 2200, roi: 0.75 },
+  'Slab Shower': { cost: 5500, roi: 0.8 },
+  'Natural Stone': { cost: 4000, roi: 0.85 },
+  'Large Format': { cost: 3200, roi: 0.8 },
+  'Steam Shower': { cost: 6500, roi: 0.75 },
+  'Bidet': { cost: 800, roi: 0.7 },
+  'Walk-in Shower': { cost: 5000, roi: 0.9 },
+  'Makeup Vanity': { cost: 2500, roi: 0.8 },
+  'Linen Closet': { cost: 3500, roi: 0.85 },
+  'Skylight': { cost: 2800, roi: 0.8 },
+  // Interior details
+  'Crown Molding': { cost: 3500, roi: 0.85 },
+  'Wainscoting': { cost: 4500, roi: 0.8 },
+  'Coffered Ceiling': { cost: 8000, roi: 0.85 },
+  'Built-in Shelves': { cost: 4000, roi: 0.9 },
+  'Fireplace': { cost: 12000, roi: 0.9 },
+  'Wet Bar': { cost: 15000, roi: 0.75 },
+  'Home Office': { cost: 10000, roi: 0.85 },
+  'Laundry Room': { cost: 14000, roi: 0.9 },
+  // Exterior — siding/door/window (directional: e.g. wood siding adds more value than stone veneer)
+  'Stucco': { cost: 18000, roi: 0.8 },
+  'Brick': { cost: 22000, roi: 0.85 },
+  'Stone Veneer': { cost: 14000, roi: 0.65 },
+  'Hardie Board': { cost: 19000, roi: 0.9 },
+  'Wood Siding': { cost: 24000, roi: 0.95 },
+  'Metal Accents': { cost: 6000, roi: 0.75 },
+  'Energy Efficient Windows': { cost: 12000, roi: 0.85 },
+  'French Doors': { cost: 4500, roi: 0.88 },
+  'Sliding Glass Door': { cost: 3500, roi: 0.82 },
+  'Entry Door Upgrade': { cost: 2800, roi: 0.9 },
+  'Skylights': { cost: 3500, roi: 0.78 },
+  'Transom Windows': { cost: 2200, roi: 0.8 },
+  // Outdoor
+  'Covered Patio': { cost: 18000, roi: 0.85 },
+  'Outdoor Kitchen': { cost: 25000, roi: 0.75 },
+  'Fire Pit': { cost: 4500, roi: 0.8 },
+  'Pergola': { cost: 8000, roi: 0.78 },
+  'Sprinkler System': { cost: 4500, roi: 0.65 },
+  'Fencing': { cost: 8000, roi: 0.75 },
+  'Xeriscaping': { cost: 6000, roi: 0.7 },
+  'Lawn Installation': { cost: 5000, roi: 0.6 },
+  'Tree Planting': { cost: 2500, roi: 0.75 },
+  'Garden Beds': { cost: 3500, roi: 0.8 },
+  'Lighting': { cost: 3000, roi: 0.85 },
+  'Water Features': { cost: 12000, roi: 0.7 },
+  // Systems
+  'New AC Unit': { cost: 8000, roi: 0.7 },
+  'Furnace Upgrade': { cost: 5000, roi: 0.75 },
+  'Smart Thermostat': { cost: 500, roi: 0.8 },
+  'Zoned System': { cost: 12000, roi: 0.75 },
+  'Air Purification': { cost: 3000, roi: 0.65 },
+  'Ductwork': { cost: 6000, roi: 0.7 },
+  'Panel Upgrade': { cost: 4000, roi: 0.8 },
+  'EV Charger': { cost: 2000, roi: 0.85 },
+  'Generator': { cost: 8000, roi: 0.7 },
+  'Smart Lighting': { cost: 3000, roi: 0.75 },
+  'Surge Protection': { cost: 1000, roi: 0.6 },
+  'Rewiring': { cost: 15000, roi: 0.75 },
+  'Repipe': { cost: 12000, roi: 0.7 },
+  'Water Heater': { cost: 3000, roi: 0.75 },
+  'Tankless': { cost: 6000, roi: 0.8 },
+  'Water Softener': { cost: 2000, roi: 0.65 },
+  'Sump Pump': { cost: 2000, roi: 0.85 },
+  'Sewer Line': { cost: 8000, roi: 0.65 },
+  // Home style (design-level impact)
+  'Modern': { cost: 0, roi: 1 },
+  'Craftsman': { cost: 8000, roi: 0.92 },
+  'Colonial': { cost: 6000, roi: 0.9 },
+  'Mediterranean': { cost: 12000, roi: 0.85 },
+  'Farmhouse': { cost: 10000, roi: 0.9 },
+  'Contemporary': { cost: 5000, roi: 0.88 },
+  'Ranch': { cost: 0, roi: 1 },
+  'Victorian': { cost: 18000, roi: 0.82 },
+};
+
+const formatEstimate = (n: number) =>
+  n >= 1000 ? `~$${(n / 1000).toFixed(0)}K` : `~$${n}`;
+const formatValue = (n: number) =>
+  n >= 1000 ? `+$${(n / 1000).toFixed(1)}K value` : `+$${n} value`;
 
 // Cost calculation helpers
 const calculateCosts = (selections: Record<string, any>) => {
@@ -146,36 +260,101 @@ const calculateCosts = (selections: Record<string, any>) => {
     totalValue += p.cost * p.roi;
   }
 
-  // Base costs for other categories
-  totalCost += 125000; // Base interior/exterior/systems
+  // Home style
+  const homeStyle = selections.homeStyle || 'Modern';
+  const styleEst = COMPONENT_ESTIMATES[homeStyle];
+  if (styleEst) {
+    totalCost += styleEst.cost;
+    totalValue += styleEst.cost * styleEst.roi;
+  }
 
-  return { totalCost, totalValue, roi: totalValue / totalCost };
+  // All checkbox/component arrays — every selection adds cost and value
+  const detailKeys: (keyof typeof selections)[] = [
+    'roomFeatures', 'kitchenFeatures', 'bathroomFeatures', 'interiorDetails',
+    'exteriorDetails', 'outdoorFeatures', 'systemsDetails'
+  ];
+  for (const key of detailKeys) {
+    const arr = (selections[key] as string[] | undefined) ?? [];
+    for (const item of arr) {
+      const est = COMPONENT_ESTIMATES[item];
+      if (est) {
+        totalCost += est.cost;
+        totalValue += est.cost * est.roi;
+      }
+    }
+  }
+
+  return { totalCost, totalValue, roi: totalCost > 0 ? totalValue / totalCost : 0 };
 };
 
 export function PropertyWishlist({ onProgressUpdate, initialBedrooms, initialBathrooms, onFinishWishlist, nextSectionLabel = 'Analysis' }: PropertyWishlistProps) {
+  const projectCtx = useProjectOptional();
+  const projectWishlist = projectCtx?.project?.wishlist;
   const [activeCategory, setActiveCategory] = useState('rooms');
   const [selections, setSelections] = useState(() => {
-    const beds = Math.max(1, Math.min(8, initialBedrooms ?? 4));
-    const baths = Math.max(1, Math.min(8, initialBathrooms ?? 4));
+    const beds = Math.max(1, Math.min(8, projectWishlist?.bedrooms ?? initialBedrooms ?? 4));
+    const baths = Math.max(1, Math.min(8, projectWishlist?.bathrooms ?? initialBathrooms ?? 4));
+    const existingTiles = buildTiles('bed', beds, [], 'leave');
+    const existingBathTiles = buildTiles('bath', baths, [], 'leave');
     return {
       bedrooms: beds,
       bathrooms: baths,
-      bedTiles: buildTiles('bed', beds, [], 'leave'),
-      bathTiles: buildTiles('bath', baths, [], 'leave'),
-      bathroomRenoScope: 'full' as 'full' | 'floors_fixtures' | 'cosmetic',
-      kitchenLevel: 'Premium',
-      flooring: 'Hardwood',
-      pool: 'None',
-      interiorFeatures: 'Custom',
-      exteriorFeatures: 'Standard',
-      systemsUpgrade: 'Standard',
-      yardSize: 'Medium',
-      homeStyle: 'Modern'
+      bedTiles: (projectWishlist?.bedTiles?.length ? projectWishlist.bedTiles : existingTiles) as RoomTile[],
+      bathTiles: (projectWishlist?.bathTiles?.length ? projectWishlist.bathTiles : existingBathTiles) as RoomTile[],
+      bathroomRenoScope: (projectWishlist?.bathroomRenoScope ?? 'full') as 'full' | 'floors_fixtures' | 'cosmetic',
+      kitchenLevel: projectWishlist?.kitchenLevel ?? 'Premium',
+      flooring: projectWishlist?.flooring ?? 'Hardwood',
+      pool: projectWishlist?.pool ?? 'None',
+      interiorFeatures: projectWishlist?.interiorFeatures ?? 'Custom',
+      exteriorFeatures: projectWishlist?.exteriorFeatures ?? 'Standard',
+      systemsUpgrade: projectWishlist?.systemsUpgrade ?? 'Standard',
+      yardSize: projectWishlist?.yardSize ?? 'Medium',
+      homeStyle: projectWishlist?.homeStyle ?? 'Modern',
+      roomFeatures: projectWishlist?.roomFeatures ?? [],
+      kitchenFeatures: projectWishlist?.kitchenFeatures ?? [],
+      bathroomFeatures: projectWishlist?.bathroomFeatures ?? [],
+      interiorDetails: projectWishlist?.interiorDetails ?? [],
+      exteriorDetails: projectWishlist?.exteriorDetails ?? [],
+      outdoorFeatures: projectWishlist?.outdoorFeatures ?? [],
+      systemsDetails: projectWishlist?.systemsDetails ?? [],
     };
   });
+
+  const toggleFeature = (key: 'roomFeatures' | 'kitchenFeatures' | 'bathroomFeatures' | 'interiorDetails' | 'exteriorDetails' | 'outdoorFeatures' | 'systemsDetails', item: string) => {
+    setSelections(prev => {
+      const arr = prev[key] ?? [];
+      const next = arr.includes(item) ? arr.filter(x => x !== item) : [...arr, item];
+      return { ...prev, [key]: next };
+    });
+    setCompletedCategories(prev => new Set([...prev, activeCategory]));
+  };
   const [completedCategories, setCompletedCategories] = useState<Set<string>>(new Set(['rooms']));
+  const [specialInstructions, setSpecialInstructions] = useState(projectCtx?.project?.notes?.specialInstructions ?? '');
+  const isInitialMount = useRef(true);
 
   const { totalCost, totalValue, roi } = useMemo(() => calculateCosts(selections), [selections]);
+
+  // Persist wishlist to project so Design Package and Contractor Review have full scope (CAD/contractor-ready)
+  useEffect(() => {
+    if (!projectCtx) return;
+    if (isInitialMount.current) {
+      isInitialMount.current = false;
+      return;
+    }
+    projectCtx.updateProject({
+      wishlist: {
+        ...projectCtx.project.wishlist,
+        ...selections,
+        bedTiles: selections.bedTiles,
+        bathTiles: selections.bathTiles,
+      },
+      financial: {
+        ...projectCtx.project.financial,
+        totalCost,
+        totalValue,
+      },
+    });
+  }, [selections, totalCost, totalValue]);
 
   // Update progress based on completed categories
   useEffect(() => {
@@ -183,8 +362,9 @@ export function PropertyWishlist({ onProgressUpdate, initialBedrooms, initialBat
     onProgressUpdate?.(progress);
   }, [completedCategories, onProgressUpdate]);
 
-  // When property lookup provides bed/bath counts, seed room counts and tiles
+  // When property lookup provides bed/bath counts, seed room counts and tiles (only if not already from project)
   useEffect(() => {
+    if (projectWishlist?.bedrooms != null || projectWishlist?.bathrooms != null) return;
     if (initialBedrooms == null && initialBathrooms == null) return;
     setSelections(prev => {
       const beds = initialBedrooms != null ? Math.max(1, Math.min(8, initialBedrooms)) : prev.bedrooms;
@@ -198,7 +378,7 @@ export function PropertyWishlist({ onProgressUpdate, initialBedrooms, initialBat
         bathTiles: buildTiles('bath', baths, prev.bathTiles ?? [], 'leave')
       };
     });
-  }, [initialBedrooms, initialBathrooms]);
+  }, [initialBedrooms, initialBathrooms, projectWishlist?.bedrooms, projectWishlist?.bathrooms]);
 
   const updateSelection = (key: string, value: any) => {
     setSelections(prev => {
@@ -437,12 +617,27 @@ export function PropertyWishlist({ onProgressUpdate, initialBedrooms, initialBat
             <div className="rounded-xl border border-white/10 bg-white/5 p-4">
               <p className="text-white font-medium mb-3">Room Features</p>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-                {['Walk-in Closet', 'En-suite Bath', 'Sitting Area', 'Ceiling Fan', 'Bay Window', 'Balcony Access', 'Vaulted Ceiling', 'Hardwood Floors'].map((feature) => (
-                  <label key={feature} className="flex items-center gap-2 p-2 rounded-lg bg-white/5 cursor-pointer hover:bg-white/10 transition-colors border border-white/10">
-                    <input type="checkbox" className="rounded border-white/20 text-pink-500 focus:ring-pink-500 bg-white/10" />
-                    <span className="text-sm text-purple-200">{feature}</span>
-                  </label>
-                ))}
+                {['Walk-in Closet', 'En-suite Bath', 'Sitting Area', 'Ceiling Fan', 'Bay Window', 'Balcony Access', 'Vaulted Ceiling', 'Hardwood Floors'].map((feature) => {
+                  const est = COMPONENT_ESTIMATES[feature];
+                  return (
+                    <label key={feature} className="flex items-center justify-between gap-2 p-2 rounded-lg bg-white/5 cursor-pointer hover:bg-white/10 transition-colors border border-white/10">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <input
+                          type="checkbox"
+                          checked={(selections.roomFeatures ?? []).includes(feature)}
+                          onChange={() => toggleFeature('roomFeatures', feature)}
+                          className="rounded border-white/20 text-pink-500 focus:ring-pink-500 bg-white/10 shrink-0"
+                        />
+                        <span className="text-sm text-purple-200 truncate">{feature}</span>
+                      </div>
+                      {est && (
+                        <span className="text-xs text-purple-400 shrink-0 text-right">
+                          {formatEstimate(est.cost)} · {formatValue(est.cost * est.roi)}
+                        </span>
+                      )}
+                    </label>
+                  );
+                })}
               </div>
             </div>
           </div>
@@ -484,23 +679,53 @@ export function PropertyWishlist({ onProgressUpdate, initialBedrooms, initialBat
               <div className="bg-white/5 rounded-xl p-4 border border-white/10">
                 <p className="text-white font-medium mb-3">Appliances</p>
                 <div className="space-y-2">
-                  {['Gas Range', 'Double Oven', 'French Door Fridge', 'Dishwasher Drawer', 'Wine Cooler', 'Pot Filler'].map((item) => (
-                    <label key={item} className="flex items-center gap-2 cursor-pointer">
-                      <input type="checkbox" className="rounded border-white/20 text-pink-500 bg-white/10" />
-                      <span className="text-sm text-purple-200">{item}</span>
-                    </label>
-                  ))}
+                  {['Gas Range', 'Double Oven', 'French Door Fridge', 'Dishwasher Drawer', 'Wine Cooler', 'Pot Filler'].map((item) => {
+                    const est = COMPONENT_ESTIMATES[item];
+                    return (
+                      <label key={item} className="flex items-center justify-between gap-2 cursor-pointer group">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <input
+                            type="checkbox"
+                            checked={(selections.kitchenFeatures ?? []).includes(item)}
+                            onChange={() => toggleFeature('kitchenFeatures', item)}
+                            className="rounded border-white/20 text-pink-500 bg-white/10 shrink-0"
+                          />
+                          <span className="text-sm text-purple-200 group-hover:text-white transition-colors truncate">{item}</span>
+                        </div>
+                        {est && (
+                          <span className="text-xs text-purple-400 shrink-0 text-right">
+                            {formatEstimate(est.cost)} · {formatValue(est.cost * est.roi)}
+                          </span>
+                        )}
+                      </label>
+                    );
+                  })}
                 </div>
               </div>
               <div className="bg-white/5 rounded-xl p-4 border border-white/10">
                 <p className="text-white font-medium mb-3">Features</p>
                 <div className="space-y-2">
-                  {['Island with Seating', 'Walk-in Pantry', 'Under-cabinet Lighting', 'Pot Rack', 'Farm Sink', 'Garbage Disposal'].map((item) => (
-                    <label key={item} className="flex items-center gap-2 cursor-pointer">
-                      <input type="checkbox" className="rounded border-white/20 text-pink-500 bg-white/10" />
-                      <span className="text-sm text-purple-200">{item}</span>
-                    </label>
-                  ))}
+                  {['Island with Seating', 'Walk-in Pantry', 'Under-cabinet Lighting', 'Pot Rack', 'Farm Sink', 'Garbage Disposal'].map((item) => {
+                    const est = COMPONENT_ESTIMATES[item];
+                    return (
+                      <label key={item} className="flex items-center justify-between gap-2 cursor-pointer group">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <input
+                            type="checkbox"
+                            checked={(selections.kitchenFeatures ?? []).includes(item)}
+                            onChange={() => toggleFeature('kitchenFeatures', item)}
+                            className="rounded border-white/20 text-pink-500 bg-white/10 shrink-0"
+                          />
+                          <span className="text-sm text-purple-200 group-hover:text-white transition-colors truncate">{item}</span>
+                        </div>
+                        {est && (
+                          <span className="text-xs text-purple-400 shrink-0 text-right">
+                            {formatEstimate(est.cost)} · {formatValue(est.cost * est.roi)}
+                          </span>
+                        )}
+                      </label>
+                    );
+                  })}
                 </div>
               </div>
             </div>
@@ -519,12 +744,27 @@ export function PropertyWishlist({ onProgressUpdate, initialBedrooms, initialBat
                 <div key={title} className="bg-white/5 rounded-xl p-4 border border-white/10">
                   <p className="text-white font-medium mb-3">{title}</p>
                   <div className="space-y-2">
-                    {items.map((item) => (
-                      <label key={item} className="flex items-center gap-2 cursor-pointer">
-                        <input type="checkbox" className="rounded border-white/20 text-pink-500 bg-white/10" />
-                        <span className="text-sm text-purple-200">{item}</span>
-                      </label>
-                    ))}
+                    {items.map((item) => {
+                      const est = COMPONENT_ESTIMATES[item];
+                      return (
+                        <label key={item} className="flex items-center justify-between gap-2 cursor-pointer group">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <input
+                              type="checkbox"
+                              checked={(selections.bathroomFeatures ?? []).includes(item)}
+                              onChange={() => toggleFeature('bathroomFeatures', item)}
+                              className="rounded border-white/20 text-pink-500 bg-white/10 shrink-0"
+                            />
+                            <span className="text-sm text-purple-200 group-hover:text-white transition-colors truncate">{item}</span>
+                          </div>
+                          {est && (
+                            <span className="text-xs text-purple-400 shrink-0 text-right">
+                              {formatEstimate(est.cost)} · {formatValue(est.cost * est.roi)}
+                            </span>
+                          )}
+                        </label>
+                      );
+                    })}
                   </div>
                 </div>
               ))}
@@ -566,12 +806,27 @@ export function PropertyWishlist({ onProgressUpdate, initialBedrooms, initialBat
             <div className="bg-white/5 rounded-xl p-4 border border-white/10">
               <p className="text-white font-medium mb-3">Interior Details</p>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-                {['Crown Molding', 'Wainscoting', 'Coffered Ceiling', 'Built-in Shelves', 'Fireplace', 'Wet Bar', 'Home Office', 'Laundry Room'].map((item) => (
-                  <label key={item} className="flex items-center gap-2 p-2 rounded-lg bg-white/5 cursor-pointer hover:bg-white/10 transition-colors">
-                    <input type="checkbox" className="rounded border-white/20 text-pink-500 bg-white/10" />
-                    <span className="text-sm text-purple-200">{item}</span>
-                  </label>
-                ))}
+                {['Crown Molding', 'Wainscoting', 'Coffered Ceiling', 'Built-in Shelves', 'Fireplace', 'Wet Bar', 'Home Office', 'Laundry Room'].map((item) => {
+                  const est = COMPONENT_ESTIMATES[item];
+                  return (
+                    <label key={item} className="flex items-center justify-between gap-2 p-2 rounded-lg bg-white/5 cursor-pointer hover:bg-white/10 transition-colors border border-white/10">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <input
+                          type="checkbox"
+                          checked={(selections.interiorDetails ?? []).includes(item)}
+                          onChange={() => toggleFeature('interiorDetails', item)}
+                          className="rounded border-white/20 text-pink-500 bg-white/10 shrink-0"
+                        />
+                        <span className="text-sm text-purple-200 truncate">{item}</span>
+                      </div>
+                      {est && (
+                        <span className="text-xs text-purple-400 shrink-0 text-right">
+                          {formatEstimate(est.cost)} · {formatValue(est.cost * est.roi)}
+                        </span>
+                      )}
+                    </label>
+                  );
+                })}
               </div>
             </div>
           </div>
@@ -584,19 +839,27 @@ export function PropertyWishlist({ onProgressUpdate, initialBedrooms, initialBat
             <div className="bg-white/5 rounded-xl p-4 border border-white/10">
               <p className="text-white font-medium mb-3">Home Style</p>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                {['Modern', 'Craftsman', 'Colonial', 'Mediterranean', 'Farmhouse', 'Contemporary', 'Ranch', 'Victorian'].map((style) => (
-                  <button
-                    key={style}
-                    onClick={() => updateSelection('homeStyle', style)}
-                    className={`py-3 px-4 rounded-xl border text-sm font-medium transition-all ${
-                      selections.homeStyle === style
-                        ? 'bg-pink-500/20 border-pink-500/50 text-white'
-                        : 'bg-white/5 border-white/10 text-purple-200 hover:bg-white/10'
-                    }`}
-                  >
-                    {style}
-                  </button>
-                ))}
+                {['Modern', 'Craftsman', 'Colonial', 'Mediterranean', 'Farmhouse', 'Contemporary', 'Ranch', 'Victorian'].map((style) => {
+                  const est = COMPONENT_ESTIMATES[style];
+                  return (
+                    <button
+                      key={style}
+                      onClick={() => updateSelection('homeStyle', style)}
+                      className={`py-3 px-4 rounded-xl border text-sm font-medium transition-all text-left ${
+                        selections.homeStyle === style
+                          ? 'bg-pink-500/20 border-pink-500/50 text-white'
+                          : 'bg-white/5 border-white/10 text-purple-200 hover:bg-white/10'
+                      }`}
+                    >
+                      <span className="block">{style}</span>
+                      {est && (est.cost > 0 || est.roi !== 1) && (
+                        <span className="text-xs text-purple-400 mt-0.5 block">
+                          {est.cost > 0 ? formatEstimate(est.cost) : '—'} · {formatValue(est.cost * est.roi)}
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
               </div>
             </div>
 
@@ -605,23 +868,53 @@ export function PropertyWishlist({ onProgressUpdate, initialBedrooms, initialBat
               <div className="bg-white/5 rounded-xl p-4 border border-white/10">
                 <p className="text-white font-medium mb-3">Siding & Materials</p>
                 <div className="space-y-2">
-                  {['Stucco', 'Brick', 'Stone Veneer', 'Hardie Board', 'Wood Siding', 'Metal Accents'].map((item) => (
-                    <label key={item} className="flex items-center gap-2 cursor-pointer">
-                      <input type="checkbox" className="rounded border-white/20 text-pink-500 bg-white/10" />
-                      <span className="text-sm text-purple-200">{item}</span>
-                    </label>
-                  ))}
+                  {['Stucco', 'Brick', 'Stone Veneer', 'Hardie Board', 'Wood Siding', 'Metal Accents'].map((item) => {
+                    const est = COMPONENT_ESTIMATES[item];
+                    return (
+                      <label key={item} className="flex items-center justify-between gap-2 cursor-pointer group">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <input
+                            type="checkbox"
+                            checked={(selections.exteriorDetails ?? []).includes(item)}
+                            onChange={() => toggleFeature('exteriorDetails', item)}
+                            className="rounded border-white/20 text-pink-500 bg-white/10 shrink-0"
+                          />
+                          <span className="text-sm text-purple-200 group-hover:text-white transition-colors truncate">{item}</span>
+                        </div>
+                        {est && (
+                          <span className="text-xs text-purple-400 shrink-0 text-right">
+                            {formatEstimate(est.cost)} · {formatValue(est.cost * est.roi)}
+                          </span>
+                        )}
+                      </label>
+                    );
+                  })}
                 </div>
               </div>
               <div className="bg-white/5 rounded-xl p-4 border border-white/10">
                 <p className="text-white font-medium mb-3">Windows & Doors</p>
                 <div className="space-y-2">
-                  {['Energy Efficient Windows', 'French Doors', 'Sliding Glass Door', 'Entry Door Upgrade', 'Skylights', 'Transom Windows'].map((item) => (
-                    <label key={item} className="flex items-center gap-2 cursor-pointer">
-                      <input type="checkbox" className="rounded border-white/20 text-pink-500 bg-white/10" />
-                      <span className="text-sm text-purple-200">{item}</span>
-                    </label>
-                  ))}
+                  {['Energy Efficient Windows', 'French Doors', 'Sliding Glass Door', 'Entry Door Upgrade', 'Skylights', 'Transom Windows'].map((item) => {
+                    const est = COMPONENT_ESTIMATES[item];
+                    return (
+                      <label key={item} className="flex items-center justify-between gap-2 cursor-pointer group">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <input
+                            type="checkbox"
+                            checked={(selections.exteriorDetails ?? []).includes(item)}
+                            onChange={() => toggleFeature('exteriorDetails', item)}
+                            className="rounded border-white/20 text-pink-500 bg-white/10 shrink-0"
+                          />
+                          <span className="text-sm text-purple-200 group-hover:text-white transition-colors truncate">{item}</span>
+                        </div>
+                        {est && (
+                          <span className="text-xs text-purple-400 shrink-0 text-right">
+                            {formatEstimate(est.cost)} · {formatValue(est.cost * est.roi)}
+                          </span>
+                        )}
+                      </label>
+                    );
+                  })}
                 </div>
               </div>
             </div>
@@ -663,23 +956,53 @@ export function PropertyWishlist({ onProgressUpdate, initialBedrooms, initialBat
               <div className="bg-white/5 rounded-xl p-4 border border-white/10">
                 <p className="text-white font-medium mb-3">Yard Features</p>
                 <div className="space-y-2">
-                  {['Covered Patio', 'Outdoor Kitchen', 'Fire Pit', 'Pergola', 'Sprinkler System', 'Fencing'].map((item) => (
-                    <label key={item} className="flex items-center gap-2 cursor-pointer">
-                      <input type="checkbox" className="rounded border-white/20 text-pink-500 bg-white/10" />
-                      <span className="text-sm text-purple-200">{item}</span>
-                    </label>
-                  ))}
+                  {['Covered Patio', 'Outdoor Kitchen', 'Fire Pit', 'Pergola', 'Sprinkler System', 'Fencing'].map((item) => {
+                    const est = COMPONENT_ESTIMATES[item];
+                    return (
+                      <label key={item} className="flex items-center justify-between gap-2 cursor-pointer group">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <input
+                            type="checkbox"
+                            checked={(selections.outdoorFeatures ?? []).includes(item)}
+                            onChange={() => toggleFeature('outdoorFeatures', item)}
+                            className="rounded border-white/20 text-pink-500 bg-white/10 shrink-0"
+                          />
+                          <span className="text-sm text-purple-200 group-hover:text-white transition-colors truncate">{item}</span>
+                        </div>
+                        {est && (
+                          <span className="text-xs text-purple-400 shrink-0 text-right">
+                            {formatEstimate(est.cost)} · {formatValue(est.cost * est.roi)}
+                          </span>
+                        )}
+                      </label>
+                    );
+                  })}
                 </div>
               </div>
               <div className="bg-white/5 rounded-xl p-4 border border-white/10">
                 <p className="text-white font-medium mb-3">Landscaping</p>
                 <div className="space-y-2">
-                  {['Xeriscaping', 'Lawn Installation', 'Tree Planting', 'Garden Beds', 'Lighting', 'Water Features'].map((item) => (
-                    <label key={item} className="flex items-center gap-2 cursor-pointer">
-                      <input type="checkbox" className="rounded border-white/20 text-pink-500 bg-white/10" />
-                      <span className="text-sm text-purple-200">{item}</span>
-                    </label>
-                  ))}
+                  {['Xeriscaping', 'Lawn Installation', 'Tree Planting', 'Garden Beds', 'Lighting', 'Water Features'].map((item) => {
+                    const est = COMPONENT_ESTIMATES[item];
+                    return (
+                      <label key={item} className="flex items-center justify-between gap-2 cursor-pointer group">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <input
+                            type="checkbox"
+                            checked={(selections.outdoorFeatures ?? []).includes(item)}
+                            onChange={() => toggleFeature('outdoorFeatures', item)}
+                            className="rounded border-white/20 text-pink-500 bg-white/10 shrink-0"
+                          />
+                          <span className="text-sm text-purple-200 group-hover:text-white transition-colors truncate">{item}</span>
+                        </div>
+                        {est && (
+                          <span className="text-xs text-purple-400 shrink-0 text-right">
+                            {formatEstimate(est.cost)} · {formatValue(est.cost * est.roi)}
+                          </span>
+                        )}
+                      </label>
+                    );
+                  })}
                 </div>
               </div>
             </div>
@@ -728,15 +1051,27 @@ export function PropertyWishlist({ onProgressUpdate, initialBedrooms, initialBat
                 <div key={title} className="bg-white/5 rounded-xl p-4 border border-white/10">
                   <p className="text-white font-medium mb-3">{title}</p>
                   <div className="space-y-2">
-                    {items.map(({ label, cost }) => (
-                      <label key={label} className="flex items-center justify-between cursor-pointer group">
-                        <div className="flex items-center gap-2">
-                          <input type="checkbox" className="rounded border-white/20 text-pink-500 bg-white/10" />
-                          <span className="text-sm text-purple-200 group-hover:text-white transition-colors">{label}</span>
-                        </div>
-                        <span className="text-xs text-purple-400">{cost}</span>
-                      </label>
-                    ))}
+                    {items.map(({ label }) => {
+                      const est = COMPONENT_ESTIMATES[label];
+                      return (
+                        <label key={label} className="flex items-center justify-between gap-2 cursor-pointer group">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <input
+                              type="checkbox"
+                              checked={(selections.systemsDetails ?? []).includes(label)}
+                              onChange={() => toggleFeature('systemsDetails', label)}
+                              className="rounded border-white/20 text-pink-500 bg-white/10 shrink-0"
+                            />
+                            <span className="text-sm text-purple-200 group-hover:text-white transition-colors truncate">{label}</span>
+                          </div>
+                          {est && (
+                            <span className="text-xs text-purple-400 shrink-0 text-right">
+                              {formatEstimate(est.cost)} · {formatValue(est.cost * est.roi)}
+                            </span>
+                          )}
+                        </label>
+                      );
+                    })}
                   </div>
                 </div>
               ))}
@@ -866,6 +1201,26 @@ export function PropertyWishlist({ onProgressUpdate, initialBedrooms, initialBat
             transition={{ duration: 0.3 }}
           />
         </div>
+      </div>
+
+      {/* Special instructions for contractor & architect — full scope for SOW */}
+      <div className="bg-white/5 rounded-xl p-4 border border-white/10">
+        <label className="block text-white font-medium text-sm mb-2" htmlFor="special-instructions">
+          Special instructions for your contractor or architect
+        </label>
+        <textarea
+          id="special-instructions"
+          value={specialInstructions}
+          onChange={(e) => {
+            const v = e.target.value;
+            setSpecialInstructions(v);
+            projectCtx?.updateProject({ notes: { specialInstructions: v.trim() || undefined } });
+          }}
+          placeholder="e.g. Preserve the oak tree in the backyard, need ADA-friendly master bath, must complete by June..."
+          rows={3}
+          className="w-full px-4 py-3 rounded-xl bg-gray-900/50 border border-white/20 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-pink-500/50 resize-y text-sm"
+        />
+        <p className="text-purple-300/70 text-xs mt-1.5">Included in the Scope of Work so your contractor and lender see the full picture.</p>
       </div>
     </div>
   );
