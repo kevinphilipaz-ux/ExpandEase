@@ -61,15 +61,59 @@ function normalizeAddress(addr: string): string {
   return addr.trim().replace(/\s*,\s*/, ', ');
 }
 
+// --- Cache (saves RentCast calls when testing the same address) ---
+const CACHE_KEY_PREFIX = 'expand_ease_property_';
+const CACHE_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
+
+const memoryCache = new Map<string, PropertyDataResult>();
+
+function getCacheKey(addr: string): string {
+  return normalizeAddress(addr);
+}
+
+function getFromCache(address: string): PropertyDataResult | null {
+  const key = getCacheKey(address);
+  const mem = memoryCache.get(key);
+  if (mem) return mem;
+  try {
+    const stored = localStorage.getItem(CACHE_KEY_PREFIX + key);
+    if (!stored) return null;
+    const { data, expiresAt } = JSON.parse(stored) as { data: PropertyDataResult; expiresAt: number };
+    if (expiresAt && Date.now() > expiresAt) {
+      localStorage.removeItem(CACHE_KEY_PREFIX + key);
+      return null;
+    }
+    memoryCache.set(key, data);
+    return data;
+  } catch {
+    return null;
+  }
+}
+
+function setCache(address: string, data: PropertyDataResult): void {
+  const key = getCacheKey(address);
+  memoryCache.set(key, data);
+  try {
+    const expiresAt = Date.now() + CACHE_TTL_MS;
+    localStorage.setItem(CACHE_KEY_PREFIX + key, JSON.stringify({ data, expiresAt }));
+  } catch {
+    // ignore quota or disabled localStorage
+  }
+}
+
 /**
  * Fetch real property value and comparables from RentCast.
  * Returns null if no API key or on error (caller should use mock).
+ * Results are cached in memory and localStorage so repeated lookups for the same address don't use API quota.
  */
 export async function fetchPropertyValue(address: string): Promise<PropertyDataResult | null> {
   if (!API_KEY || typeof API_KEY !== 'string' || API_KEY.length < 5) {
     return null;
   }
   const normalized = normalizeAddress(address);
+  const cached = getFromCache(normalized);
+  if (cached) return cached;
+
   const url = `${RENTCAST_BASE}/avm/value?address=${encodeURIComponent(normalized)}&compCount=10&maxRadius=1`;
   try {
     const res = await fetch(url, {
@@ -109,7 +153,9 @@ export async function fetchPropertyValue(address: string): Promise<PropertyDataR
       yearBuilt: c.yearBuilt ?? 0,
       daysOnMarket: c.daysOnMarket ?? 0,
     })).filter((c) => c.address && c.price > 0);
-    return { subject, comps };
+    const result = { subject, comps };
+    setCache(normalized, result);
+    return result;
   } catch {
     return null;
   }

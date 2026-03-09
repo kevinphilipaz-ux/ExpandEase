@@ -104,13 +104,22 @@ export function LandingPage() {
     }
   }, [address, propertyLoading, subject.value]);
 
-  /** Get current address from React state or from the Google Places input (so it works from nav or form). */
+  /** Get current address from React state or from the Google Places input (so it works from nav or form).
+   * When using the Google widget, the input is inside its shadow DOM so we must query there. */
   const getCurrentAddress = (): string => {
     let addressToUse = address.trim();
     if (!addressToUse && addressContainerRef.current) {
-      const input = addressContainerRef.current.querySelector('input');
-      const raw = input?.value?.trim();
-      if (raw) addressToUse = raw;
+      const container = addressContainerRef.current;
+      // Fallback: plain input in light DOM
+      const lightInput = container.querySelector('input');
+      if (lightInput) addressToUse = lightInput.value?.trim() || '';
+      // Google PlaceAutocompleteElement: input is inside the widget's shadow DOM
+      if (!addressToUse) {
+        const widget = container.querySelector('.gmp-place-autocomplete-input');
+        const shadowInput = (widget as HTMLElement & { shadowRoot?: ShadowRoot })?.shadowRoot?.querySelector('input');
+        const raw = shadowInput?.value?.trim();
+        if (raw) addressToUse = raw;
+      }
     }
     return addressToUse;
   };
@@ -351,9 +360,12 @@ export function LandingPage() {
                 </div>
 
                 {/* CTA Button */}
-                <button
+                <motion.button
+                  type="button"
                   onClick={handleGetStarted}
                   disabled={isSubmitting}
+                  whileTap={!isSubmitting ? { scale: 0.98 } : undefined}
+                  transition={{ type: 'spring', stiffness: 400, damping: 17 }}
                   className="w-full py-4 rounded-xl bg-gradient-to-r from-pink-600 to-purple-600 text-white font-bold text-lg hover:from-pink-700 hover:to-purple-700 transition-all flex items-center justify-center gap-2 group"
                 >
                   {isSubmitting ? (
@@ -364,7 +376,7 @@ export function LandingPage() {
                       <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" />
                     </>
                   )}
-                </button>
+                </motion.button>
 
                 <p className="text-center text-gray-500 text-xs mt-3">
                   No credit card required • Instant results
@@ -588,13 +600,16 @@ export function LandingPage() {
           <p className="text-xl text-gray-300 mb-8 max-w-2xl mx-auto">
             Discover the smarter way to get your dream home—without moving. Get your free analysis.
           </p>
-          <button
+          <motion.button
+            type="button"
             onClick={handleGetStarted}
+            whileTap={{ scale: 0.98 }}
+            transition={{ type: 'spring', stiffness: 400, damping: 17 }}
             className="px-10 py-5 rounded-2xl bg-gradient-to-r from-pink-600 to-purple-600 text-white font-bold text-xl hover:from-pink-700 hover:to-purple-700 transition-all flex items-center gap-3 mx-auto group"
           >
             Get Your Free Analysis
             <ArrowRight size={24} className="group-hover:translate-x-1 transition-transform" />
-          </button>
+          </motion.button>
           <p className="text-gray-500 mt-4">Takes 60 seconds • No credit card required</p>
         </div>
       </section>

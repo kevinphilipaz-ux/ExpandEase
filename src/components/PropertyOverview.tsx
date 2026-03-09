@@ -53,6 +53,18 @@ export function PropertyOverview({ onProgressUpdate }: PropertyOverviewProps) {
     }
   }, [loading, subject.beds, subject.baths, subject.sqft, subject.yearBuilt, subject.pool]);
 
+  useEffect(() => {
+    if (!projectCtx || loading) return;
+    if (subject.beds > 0 || subject.baths > 0) {
+      projectCtx.updateProject({
+        property: {
+          ...projectCtx.project.property,
+          beds: subject.beds,
+          baths: subject.baths,
+        },
+      });
+    }
+  }, [loading, subject.beds, subject.baths, projectCtx]);
 
   useEffect(() => {
     onProgressUpdate?.(100);

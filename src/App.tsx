@@ -155,10 +155,13 @@ export function App() {
               const isLocked = idx > 0 && sections[idx - 1].progress < 50;
 
               return (
-                <button
+                <motion.button
+                  type="button"
                   key={section.id}
                   onClick={() => !isLocked && setActiveSection(section.id)}
                   disabled={isLocked}
+                  whileTap={isLocked ? undefined : { scale: 0.97 }}
+                  transition={{ type: 'spring', stiffness: 400, damping: 17 }}
                   className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-all ${
                     isActive
                       ? 'bg-white/20 text-white'
@@ -178,7 +181,7 @@ export function App() {
                   {isActive && section.progress > 0 && section.progress < 100 && (
                     <span className="text-xs text-purple-300">({section.progress}%)</span>
                   )}
-                </button>
+                </motion.button>
               );
             })}
           </div>
@@ -238,16 +241,19 @@ export function App() {
 
         {/* Navigation Footer — minimal when on last section; stats centered */}
         <div className="mt-8 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <button
+          <motion.button
+            type="button"
             onClick={() => {
               const prevIndex = Math.max(0, currentSectionIndex - 1);
               setActiveSection(sections[prevIndex].id);
             }}
             disabled={currentSectionIndex === 0}
+            whileTap={currentSectionIndex === 0 ? undefined : { scale: 0.97 }}
+            transition={{ type: 'spring', stiffness: 400, damping: 17 }}
             className="flex items-center gap-2 px-4 py-2 rounded-xl text-purple-300 hover:text-white hover:bg-white/10 transition-all disabled:opacity-30 disabled:cursor-not-allowed order-2 sm:order-1"
           >
             Previous
-          </button>
+          </motion.button>
 
           {/* Quick Stats — centered when on last section so nothing is off-center */}
           <div className="hidden md:flex items-center justify-center gap-6 text-sm flex-1 order-1 sm:order-2">
@@ -270,16 +276,19 @@ export function App() {
           {activeSection === 'wishlist' ? (
             <span className="text-purple-300/50 text-xs order-3">Continue with the button above</span>
           ) : currentSectionIndex < sections.length - 1 ? (
-            <button
+            <motion.button
+              type="button"
               onClick={() => {
                 const nextIndex = Math.min(sections.length - 1, currentSectionIndex + 1);
                 setActiveSection(sections[nextIndex].id);
               }}
+              whileTap={{ scale: 0.97 }}
+              transition={{ type: 'spring', stiffness: 400, damping: 17 }}
               className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-white text-purple-900 font-bold hover:bg-gray-100 transition-all order-3"
             >
               Next Section
               <ChevronRight size={18} />
-            </button>
+            </motion.button>
           ) : (
             <a
               href="#your-decision"

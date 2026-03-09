@@ -1,7 +1,10 @@
 import React, { useEffect, useState } from 'react';
+import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { ArrowRight, TrendingUp } from 'lucide-react';
 import { ProjectBuilder, ProjectBuilderOutput } from './ProjectBuilder';
+import { ValueWithPop } from '../ui/ValueWithPop';
+import { useMilestoneConfetti } from '../../hooks/useMilestoneConfetti';
 export function DreamCalculator() {
   const navigate = useNavigate();
   const [homeValue, setHomeValue] = useState(800000);
@@ -36,6 +39,8 @@ export function DreamCalculator() {
     setNewValue(projectedValue);
     setEquity(addedValue - estimatedBudget); // Instant equity is value added minus cost
   }, [homeValue, budgetRange, equityMultiplier]);
+  const roiPercent = (budgetRange.min + budgetRange.max) / 2 > 0 ? Math.round((equity / ((budgetRange.min + budgetRange.max) / 2)) * 100) : 0;
+  useMilestoneConfetti(equity, roiPercent);
   const formatCurrency = (val: number) => {
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
@@ -144,25 +149,27 @@ export function DreamCalculator() {
               Instant Equity Created
             </span>
             <span className="text-green-400 font-mono font-bold text-sm shadow-green-500/20 drop-shadow-[0_0_8px_rgba(74,222,128,0.4)]">
-              +{formatCurrency(equity)}
+              <ValueWithPop value={equity} format="currency" prefix="+" />
             </span>
           </div>
         </div>
 
         {/* CTA */}
-        <button
+        <motion.button
+          type="button"
           onClick={() => navigate('/onboarding')}
-          className="w-full group relative overflow-hidden rounded-xl bg-gradient-to-r from-pink-600 to-purple-600 p-px focus:outline-none focus:ring-2 focus:ring-pink-500 focus:ring-offset-2 focus:ring-offset-purple-900">
-
+          whileTap={{ scale: 0.98 }}
+          transition={{ type: 'spring', stiffness: 400, damping: 17 }}
+          className="w-full group relative overflow-hidden rounded-xl bg-gradient-to-r from-pink-600 to-purple-600 p-px focus:outline-none focus:ring-2 focus:ring-pink-500 focus:ring-offset-2 focus:ring-offset-purple-900"
+        >
           <span className="absolute inset-0 bg-gradient-to-r from-pink-600 to-purple-600 opacity-100 transition-opacity group-hover:opacity-90"></span>
           <span className="relative flex items-center justify-center gap-2 rounded-xl bg-transparent px-6 py-3.5 text-base font-bold text-white transition-all">
             Start Your Vision
             <ArrowRight
               size={18}
               className="transition-transform group-hover:translate-x-1" />
-
           </span>
-        </button>
+        </motion.button>
       </div>
     </div>);
 

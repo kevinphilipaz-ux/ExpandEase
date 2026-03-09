@@ -35,7 +35,44 @@ When the deploy finishes, Vercel gives you a URL like:
 - Use that link on your phone or send it to anyone—it works as long as Vercel is up, not your laptop.
 - Every time you `git push` to the connected branch, Vercel will rebuild and update the site.
 
+## 4. Use your custom domain (expandeasenow.com)
+
+To serve the site at **https://expandeasenow.com**:
+
+### A. Add the domain in Vercel
+
+1. In the Vercel dashboard, open your **ExpandEase** project.
+2. Go to **Settings** → **Domains**.
+3. Click **Add** and enter `expandeasenow.com`.
+4. Add `www.expandeasenow.com` as well if you want both to work (Vercel will suggest it).
+5. Vercel will show you the DNS records to add (usually **A** and/or **CNAME**).
+
+### B. Point your domain at Vercel (at your registrar)
+
+Where you bought expandeasenow.com (e.g. Namecheap, GoDaddy, Cloudflare, Google Domains), add the DNS records **shown on your Vercel project’s Settings → Domains** page (they can be project-specific). Typically:
+
+- **www (www.expandeasenow.com):** Add a **CNAME** record:  
+  - Name: `www`  
+  - Value: the target Vercel shows (e.g. `4e72d5ea19e03288.vercel-dns-017.com` or `cname.vercel-dns.com`). Copy the value from the Domains page; some registrars want the trailing dot removed.
+- **Root domain (expandeasenow.com):** Vercel may list an **A** record (e.g. `76.76.21.21`) or use **Vercel DNS**; follow the apex-domain instructions on the same Domains page.
+
+Save the DNS changes. Propagation can take from a few minutes up to 48 hours. Then click **Refresh** next to the domain in Vercel to re-verify.
+
+### C. SSL and redirects
+
+- Vercel will issue a free SSL certificate for expandeasenow.com (HTTPS).
+- In **Settings** → **Domains**, you can set the **primary** domain (e.g. expandeasenow.com) and optionally redirect `www` → root or root → `www`.
+
+### D. Google Maps / Places API (if you use it)
+
+In [Google Cloud Console](https://console.cloud.google.com/) → **APIs & Services** → **Credentials** → your API key → **Application restrictions** → **HTTP referrers**, add:
+
+- `https://expandeasenow.com/*`
+- `https://www.expandeasenow.com/*`
+
+(Keep `http://localhost:*` for local development.)
+
 ## Summary
 
 - **Local:** Keep using `npm run dev` and edit code as usual.
-- **Public:** Push to GitHub → Vercel deploys automatically → share the Vercel URL. No need to keep your computer on.
+- **Public:** Push to GitHub → Vercel deploys automatically → share the Vercel URL (or **https://expandeasenow.com** once the custom domain is set). No need to keep your computer on.

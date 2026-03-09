@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useProjectOptional } from '../context/ProjectContext';
+import { ValueWithPop } from './ui/ValueWithPop';
+import { useMilestoneConfetti } from '../hooks/useMilestoneConfetti';
 import {
   Home,
   ChefHat,
@@ -158,6 +160,7 @@ const COMPONENT_ESTIMATES: Record<string, { cost: number; roi: number }> = {
   'Smart Lighting': { cost: 3000, roi: 0.75 },
   'Surge Protection': { cost: 1000, roi: 0.6 },
   'Rewiring': { cost: 15000, roi: 0.75 },
+  'Solar': { cost: 18000, roi: 0.75 },
   'Repipe': { cost: 12000, roi: 0.7 },
   'Water Heater': { cost: 3000, roi: 0.75 },
   'Tankless': { cost: 6000, roi: 0.8 },
@@ -287,6 +290,34 @@ const calculateCosts = (selections: Record<string, any>) => {
   return { totalCost, totalValue, roi: totalCost > 0 ? totalValue / totalCost : 0 };
 };
 
+const TERM_YEARS = 30;
+const MARKET_RATE_ANNUAL = 0.068;
+const DEFAULT_CURRENT_HOME_VALUE = 800_000;
+
+function monthlyPaymentForLoan(principal: number, annualRateDecimal: number, termYears: number): number {
+  if (principal <= 0) return 0;
+  const r = annualRateDecimal / 12;
+  const n = termYears * 12;
+  if (r === 0) return principal / n;
+  return (principal * r * Math.pow(1 + r, n)) / (Math.pow(1 + r, n) - 1);
+}
+
+function formatSummaryCurrency(val: number): string {
+  if (val >= 1_000_000) return `$${(val / 1_000_000).toFixed(2)}M`;
+  if (val >= 1_000) return `$${(val / 1_000).toFixed(0)}K`;
+  return `$${val.toLocaleString()}`;
+}
+
+/** Items in the same array cannot be selected together (e.g. one siding type, one landscaping base). */
+const EXCLUSION_GROUPS: Record<string, string[][]> = {
+  exteriorDetails: [
+    ['Stucco', 'Brick', 'Stone Veneer', 'Hardie Board', 'Wood Siding', 'Metal Accents']
+  ],
+  outdoorFeatures: [
+    ['Xeriscaping', 'Lawn Installation']
+  ],
+};
+
 export function PropertyWishlist({ onProgressUpdate, initialBedrooms, initialBathrooms, onFinishWishlist, nextSectionLabel = 'Analysis' }: PropertyWishlistProps) {
   const projectCtx = useProjectOptional();
   const projectWishlist = projectCtx?.project?.wishlist;
@@ -323,7 +354,20 @@ export function PropertyWishlist({ onProgressUpdate, initialBedrooms, initialBat
   const toggleFeature = (key: 'roomFeatures' | 'kitchenFeatures' | 'bathroomFeatures' | 'interiorDetails' | 'exteriorDetails' | 'outdoorFeatures' | 'systemsDetails', item: string) => {
     setSelections(prev => {
       const arr = prev[key] ?? [];
-      const next = arr.includes(item) ? arr.filter(x => x !== item) : [...arr, item];
+      if (arr.includes(item)) {
+        return { ...prev, [key]: arr.filter(x => x !== item) };
+      }
+      const groups = EXCLUSION_GROUPS[key];
+      let next = [...arr];
+      if (groups) {
+        for (const group of groups) {
+          if (group.includes(item)) {
+            next = next.filter(x => !group.includes(x));
+            break;
+          }
+        }
+      }
+      next = [...next, item];
       return { ...prev, [key]: next };
     });
     setCompletedCategories(prev => new Set([...prev, activeCategory]));
@@ -333,6 +377,46 @@ export function PropertyWishlist({ onProgressUpdate, initialBedrooms, initialBat
   const isInitialMount = useRef(true);
 
   const { totalCost, totalValue, roi } = useMemo(() => calculateCosts(selections), [selections]);
+  const equityCreated = totalValue - totalCost;
+  const roiPercent = Math.round(roi * 100);
+  useMilestoneConfetti(equityCreated, roiPercent);
+
+  const minBedrooms = Math.max(1, Math.min(8, (projectCtx?.project?.property?.beds && projectCtx.project.property.beds > 0) ? projectCtx.project.property.beds : (initialBedrooms ?? 1)));
+  const minBathrooms = Math.max(1, Math.min(8, (projectCtx?.project?.property?.baths && projectCtx.project.property.baths > 0) ? projectCtx.project.property.baths : (initialBathrooms ?? 1)));
+
+  useEffect(() => {
+    if (selections.bedrooms < minBedrooms || selections.bathrooms < minBathrooms) {
+      setSelections(prev => {
+        const beds = Math.max(prev.bedrooms, minBedrooms);
+        const baths = Math.max(prev.bathrooms, minBathrooms);
+        if (beds === prev.bedrooms && baths === prev.bathrooms) return prev;
+        return {
+          ...prev,
+          bedrooms: beds,
+          bathrooms: baths,
+          bedTiles: buildTiles('bed', beds, prev.bedTiles ?? [], 'add'),
+          bathTiles: buildTiles('bath', baths, prev.bathTiles ?? [], 'add'),
+        };
+      });
+    }
+  }, [minBedrooms, minBathrooms, selections.bedrooms, selections.bathrooms]);
+
+  const summaryMetrics = useMemo(() => {
+    const currentValue = projectCtx?.project?.property?.currentValue ?? DEFAULT_CURRENT_HOME_VALUE;
+    const existingBalance = projectCtx?.project?.financial?.existingMortgageBalance ?? 0;
+    const userRateDecimal = (projectCtx?.project?.onboarding?.mortgageRate ?? 3.5) / 100;
+    const postRenovationValue = currentValue + totalValue;
+    const principalAfterReno = existingBalance + totalCost;
+    const yourPaymentAfterReno = monthlyPaymentForLoan(principalAfterReno, userRateDecimal, TERM_YEARS);
+    const comparableLoanAmount = 0.8 * postRenovationValue;
+    const comparablePayment = monthlyPaymentForLoan(comparableLoanAmount, MARKET_RATE_ANNUAL, TERM_YEARS);
+    const monthlySavings = Math.round(comparablePayment - yourPaymentAfterReno);
+    return {
+      postRenovationValue,
+      monthlySavings,
+      valueAdded: totalValue,
+    };
+  }, [projectCtx?.project?.property?.currentValue, projectCtx?.project?.financial?.existingMortgageBalance, projectCtx?.project?.onboarding?.mortgageRate, totalCost, totalValue]);
 
   // Persist wishlist to project so Design Package and Contractor Review have full scope (CAD/contractor-ready)
   useEffect(() => {
@@ -382,14 +466,17 @@ export function PropertyWishlist({ onProgressUpdate, initialBedrooms, initialBat
 
   const updateSelection = (key: string, value: any) => {
     setSelections(prev => {
-      const next = { ...prev, [key]: value };
+      let next = { ...prev };
       if (key === 'bedrooms') {
-        const count = Math.max(1, Math.min(8, Number(value) || 4));
+        const count = Math.max(minBedrooms, Math.min(8, Number(value) ?? 4));
+        next.bedrooms = count;
         next.bedTiles = buildTiles('bed', count, prev.bedTiles ?? [], 'add');
-      }
-      if (key === 'bathrooms') {
-        const count = Math.max(1, Math.min(8, Number(value) || 4));
+      } else if (key === 'bathrooms') {
+        const count = Math.max(minBathrooms, Math.min(8, Number(value) ?? 4));
+        next.bathrooms = count;
         next.bathTiles = buildTiles('bath', count, prev.bathTiles ?? [], 'add');
+      } else {
+        next = { ...next, [key]: value };
       }
       return next;
     });
@@ -442,6 +529,9 @@ export function PropertyWishlist({ onProgressUpdate, initialBedrooms, initialBat
         const bedTiles = selections.bedTiles ?? buildTiles('bed', selections.bedrooms ?? 4, [], 'leave');
         const bathTiles = selections.bathTiles ?? buildTiles('bath', selections.bathrooms ?? 4, [], 'leave');
         const bathRenoCount = bathTiles.filter(t => t.status === 'renovate').length;
+        const existingTiles = [...bedTiles, ...bathTiles].filter(t => t.status !== 'add');
+        const allExistingLeftAlone = existingTiles.length > 0 && existingTiles.every(t => t.status === 'leave');
+        const allExistingRenovate = existingTiles.length > 0 && existingTiles.every(t => t.status === 'renovate');
 
         return (
           <div className="space-y-6">
@@ -451,15 +541,27 @@ export function PropertyWishlist({ onProgressUpdate, initialBedrooms, initialBat
               <p className="text-purple-300/70 text-xs mb-3">Apply to all existing rooms (rooms you&apos;re adding are unchanged)</p>
               <div className="flex flex-wrap gap-2">
                 <button
+                  type="button"
                   onClick={() => applyQuickAction('leave_all')}
-                  className="inline-flex items-center gap-2 py-2.5 px-4 rounded-xl border border-white/10 bg-white/5 text-purple-200 text-sm font-medium hover:bg-white/10 hover:border-white/20 transition-all"
+                  className={`inline-flex items-center gap-2 py-2.5 px-4 rounded-xl border text-sm font-medium transition-all ${
+                    allExistingLeftAlone
+                      ? 'bg-pink-500/20 border-pink-500/50 text-white ring-1 ring-pink-500/30'
+                      : 'border-white/10 bg-white/5 text-purple-200 hover:bg-white/10 hover:border-white/20'
+                  }`}
                 >
+                  {allExistingLeftAlone && <CheckCircle2 size={16} className="text-pink-400 shrink-0" />}
                   Leave existing alone
                 </button>
                 <button
+                  type="button"
                   onClick={() => applyQuickAction('renovate_all')}
-                  className="inline-flex items-center gap-2 py-2.5 px-4 rounded-xl border border-white/10 bg-white/5 text-purple-200 text-sm font-medium hover:bg-white/10 hover:border-white/20 transition-all"
+                  className={`inline-flex items-center gap-2 py-2.5 px-4 rounded-xl border text-sm font-medium transition-all ${
+                    allExistingRenovate
+                      ? 'bg-pink-500/20 border-pink-500/50 text-white ring-1 ring-pink-500/30'
+                      : 'border-white/10 bg-white/5 text-purple-200 hover:bg-white/10 hover:border-white/20'
+                  }`}
                 >
+                  {allExistingRenovate && <CheckCircle2 size={16} className="text-pink-400 shrink-0" />}
                   Renovate all existing
                 </button>
               </div>
@@ -477,13 +579,16 @@ export function PropertyWishlist({ onProgressUpdate, initialBedrooms, initialBat
                 </div>
                 <div className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 p-1.5">
                   <button
-                    onClick={() => updateSelection('bedrooms', Math.max(1, selections.bedrooms - 1))}
-                    className="w-9 h-9 rounded-lg bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors"
+                    type="button"
+                    onClick={() => updateSelection('bedrooms', Math.max(minBedrooms, selections.bedrooms - 1))}
+                    disabled={selections.bedrooms <= minBedrooms}
+                    className="w-9 h-9 rounded-lg bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-white/10"
                   >
                     <Minus size={18} />
                   </button>
                   <span className="text-xl font-bold w-7 text-center text-white">{selections.bedrooms}</span>
                   <button
+                    type="button"
                     onClick={() => updateSelection('bedrooms', Math.min(8, selections.bedrooms + 1))}
                     className="w-9 h-9 rounded-lg bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors"
                   >
@@ -539,13 +644,16 @@ export function PropertyWishlist({ onProgressUpdate, initialBedrooms, initialBat
                 </div>
                 <div className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 p-1.5">
                   <button
-                    onClick={() => updateSelection('bathrooms', Math.max(1, selections.bathrooms - 1))}
-                    className="w-9 h-9 rounded-lg bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors"
+                    type="button"
+                    onClick={() => updateSelection('bathrooms', Math.max(minBathrooms, selections.bathrooms - 1))}
+                    disabled={selections.bathrooms <= minBathrooms}
+                    className="w-9 h-9 rounded-lg bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-white/10"
                   >
                     <Minus size={18} />
                   </button>
                   <span className="text-xl font-bold w-7 text-center text-white">{selections.bathrooms}</span>
                   <button
+                    type="button"
                     onClick={() => updateSelection('bathrooms', Math.min(8, selections.bathrooms + 1))}
                     className="w-9 h-9 rounded-lg bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors"
                   >
@@ -620,7 +728,7 @@ export function PropertyWishlist({ onProgressUpdate, initialBedrooms, initialBat
                 {['Walk-in Closet', 'En-suite Bath', 'Sitting Area', 'Ceiling Fan', 'Bay Window', 'Balcony Access', 'Vaulted Ceiling', 'Hardwood Floors'].map((feature) => {
                   const est = COMPONENT_ESTIMATES[feature];
                   return (
-                    <label key={feature} className="flex items-center justify-between gap-2 p-2 rounded-lg bg-white/5 cursor-pointer hover:bg-white/10 transition-colors border border-white/10">
+                    <motion.label key={feature} className="flex items-center justify-between gap-2 p-2 rounded-lg bg-white/5 cursor-pointer hover:bg-white/10 transition-colors border border-white/10" whileTap={{ scale: 0.98 }} transition={{ type: 'spring', stiffness: 400, damping: 17 }}>
                       <div className="flex items-center gap-2 min-w-0">
                         <input
                           type="checkbox"
@@ -635,7 +743,7 @@ export function PropertyWishlist({ onProgressUpdate, initialBedrooms, initialBat
                           {formatEstimate(est.cost)} · {formatValue(est.cost * est.roi)}
                         </span>
                       )}
-                    </label>
+                    </motion.label>
                   );
                 })}
               </div>
@@ -1033,7 +1141,8 @@ export function PropertyWishlist({ onProgressUpdate, initialBedrooms, initialBat
                     { label: 'Generator', cost: '+$8K' },
                     { label: 'Smart Lighting', cost: '+$3K' },
                     { label: 'Surge Protection', cost: '+$1K' },
-                    { label: 'Rewiring', cost: '+$15K' }
+                    { label: 'Rewiring', cost: '+$15K' },
+                    { label: 'Solar', cost: '+$18K' }
                   ]
                 },
                 {
@@ -1094,14 +1203,21 @@ export function PropertyWishlist({ onProgressUpdate, initialBedrooms, initialBat
         </div>
         {/* Running Total */}
         <div className="text-right hidden sm:block">
-          <p className="text-purple-300 text-xs uppercase tracking-wider">Estimated Total</p>
+          <p className="text-purple-300 text-xs uppercase tracking-wider">Est. Renovation Cost</p>
           <p className="text-2xl font-bold text-white">${totalCost.toLocaleString()}</p>
-          <div className="flex items-center gap-2 justify-end mt-1">
+          <p className="text-purple-300/90 text-xs uppercase tracking-wider mt-2">Est. future value</p>
+          <p className="text-lg font-semibold text-white">{formatSummaryCurrency(summaryMetrics.postRenovationValue)}</p>
+          <div className="flex flex-col items-end gap-0.5 mt-1">
             <span className="text-emerald-400 text-sm flex items-center gap-1">
               <TrendingUp size={14} />
-              +${(totalValue - totalCost).toLocaleString()} equity
+              <ValueWithPop value={summaryMetrics.valueAdded} format="currency" prefix="+" className="inline" /> value
             </span>
-            <span className="text-purple-400 text-xs">({Math.round(roi * 100)}% ROI)</span>
+            {summaryMetrics.monthlySavings > 0 ? (
+              <span className="text-emerald-400 text-sm">Save ${summaryMetrics.monthlySavings.toLocaleString()}/mo vs. comparable home</span>
+            ) : (
+              <span className="text-purple-400 text-xs">Compare in Analysis</span>
+            )}
+            <span className="text-purple-400 text-xs">({roiPercent}% ROI)</span>
           </div>
         </div>
       </div>
@@ -1114,9 +1230,12 @@ export function PropertyWishlist({ onProgressUpdate, initialBedrooms, initialBat
           const isComplete = completedCategories.has(cat.id);
 
           return (
-            <button
+            <motion.button
               key={cat.id}
+              type="button"
               onClick={() => setActiveCategory(cat.id)}
+              whileTap={{ scale: 0.97 }}
+              transition={{ type: 'spring', stiffness: 400, damping: 17 }}
               className={`flex items-center gap-2 px-4 py-3 rounded-xl border whitespace-nowrap transition-all ${
                 isActive
                   ? 'bg-pink-500/20 border-pink-500/50 text-white'
@@ -1127,7 +1246,7 @@ export function PropertyWishlist({ onProgressUpdate, initialBedrooms, initialBat
             >
               {isComplete ? <CheckCircle2 size={16} /> : <Icon size={16} />}
               <span className="font-medium text-sm">{cat.label}</span>
-            </button>
+            </motion.button>
           );
         })}
       </div>
@@ -1157,32 +1276,42 @@ export function PropertyWishlist({ onProgressUpdate, initialBedrooms, initialBat
                 </span>
               )}
             </div>
-            <button
+            <motion.button
+              type="button"
               onClick={handlePrimaryAction}
+              whileTap={{ scale: 0.97 }}
+              transition={{ type: 'spring', stiffness: 400, damping: 17 }}
               className="px-6 py-2.5 rounded-xl bg-white text-purple-900 font-bold hover:bg-gray-100 transition-all flex items-center gap-2"
             >
               {isLastCategory
                 ? `Finish wishlist & go to ${nextSectionLabel}`
                 : `Continue to ${nextCategory?.label ?? 'Next'}`}
               <ChevronRight size={18} />
-            </button>
+            </motion.button>
           </div>
         </motion.div>
       </AnimatePresence>
 
       {/* Mobile Total */}
       <div className="sm:hidden bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-4">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between gap-4">
           <div>
-            <p className="text-purple-300 text-xs uppercase">Est. Total</p>
+            <p className="text-purple-300 text-xs uppercase">Est. Renovation Cost</p>
             <p className="text-xl font-bold text-white">${totalCost.toLocaleString()}</p>
+            <p className="text-purple-300/90 text-xs uppercase mt-1">Est. future value</p>
+            <p className="text-base font-semibold text-white">{formatSummaryCurrency(summaryMetrics.postRenovationValue)}</p>
           </div>
           <div className="text-right">
             <p className="text-emerald-400 text-sm flex items-center gap-1">
               <TrendingUp size={14} />
-              +${(totalValue - totalCost).toLocaleString()}
+              <ValueWithPop value={summaryMetrics.valueAdded} format="currency" prefix="+" className="inline" /> value
             </p>
-            <p className="text-purple-400 text-xs">{Math.round(roi * 100)}% ROI</p>
+            {summaryMetrics.monthlySavings > 0 ? (
+              <p className="text-emerald-400 text-sm">Save ${summaryMetrics.monthlySavings.toLocaleString()}/mo</p>
+            ) : (
+              <p className="text-purple-400 text-xs">Compare in Analysis</p>
+            )}
+            <p className="text-purple-400 text-xs">{roiPercent}% ROI</p>
           </div>
         </div>
       </div>

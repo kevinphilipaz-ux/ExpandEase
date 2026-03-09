@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { useProjectOptional } from '../context/ProjectContext';
+import { ValueWithPop } from './ui/ValueWithPop';
+import { useMilestoneConfetti } from '../hooks/useMilestoneConfetti';
 import {
   TrendingUp,
   TrendingDown,
@@ -121,6 +123,8 @@ export function FinancialAnalysis({ onProgressUpdate }: FinancialAnalysisProps) 
     };
   }, [enabledItems]);
 
+  useMilestoneConfetti(totals.netEquity, totals.roiPct);
+
   const monthlyPaymentForLoan = (principal: number) => {
     const r = RATE_ANNUAL / 12;
     const n = TERM_YEARS * 12;
@@ -192,7 +196,7 @@ export function FinancialAnalysis({ onProgressUpdate }: FinancialAnalysisProps) 
             </div>
             <div className="bg-white/10 rounded-xl p-4 border border-white/10">
               <p className="text-emerald-300/80 text-xs uppercase tracking-wider">Net equity created</p>
-              <p className="text-2xl font-bold text-emerald-400">{formatCurrency(totals.netEquity)}</p>
+              <p className="text-2xl font-bold text-emerald-400"><ValueWithPop value={totals.netEquity} format="currency" /></p>
             </div>
             <div className="bg-white/10 rounded-xl p-4 border border-white/10">
               <p className="text-emerald-300/80 text-xs uppercase tracking-wider">Total investment</p>
@@ -200,7 +204,7 @@ export function FinancialAnalysis({ onProgressUpdate }: FinancialAnalysisProps) 
             </div>
             <div className="bg-white/10 rounded-xl p-4 border border-white/10">
               <p className="text-emerald-300/80 text-xs uppercase tracking-wider">Blended ROI</p>
-              <p className="text-2xl font-bold text-emerald-400">{totals.roiPct}%</p>
+              <p className="text-2xl font-bold text-emerald-400"><ValueWithPop value={totals.roiPct} format="percent" /></p>
             </div>
           </div>
           <p className="text-emerald-200/90 text-sm font-medium mb-2">What you’re getting</p>
@@ -251,9 +255,11 @@ export function FinancialAnalysis({ onProgressUpdate }: FinancialAnalysisProps) 
                     className={`border-b border-white/5 ${!enabled ? 'opacity-50' : ''}`}
                   >
                     <td className="py-3 pr-2">
-                      <button
+                      <motion.button
                         type="button"
                         onClick={() => toggleItem(item.id)}
+                        whileTap={{ scale: 0.9 }}
+                        transition={{ type: 'spring', stiffness: 400, damping: 17 }}
                         className="flex items-center justify-center w-9 h-9 rounded-lg bg-white/10 hover:bg-white/20 transition-colors"
                         aria-label={enabled ? 'Exclude from plan' : 'Include in plan'}
                       >
@@ -262,7 +268,7 @@ export function FinancialAnalysis({ onProgressUpdate }: FinancialAnalysisProps) 
                         ) : (
                           <ToggleLeft size={22} className="text-purple-400" />
                         )}
-                      </button>
+                      </motion.button>
                     </td>
                     <td className="py-3 pr-4 font-medium text-white">{item.label}</td>
                     <td className="py-3 pr-4 text-right text-white tabular-nums">{formatCurrency(item.cost)}</td>

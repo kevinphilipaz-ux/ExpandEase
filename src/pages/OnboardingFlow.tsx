@@ -312,16 +312,18 @@ export function OnboardingFlow() {
                       { value: 'secondary' as const, label: 'Secondary / vacation' },
                       { value: 'investment' as const, label: 'Investment property' },
                     ].map((opt) => (
-                      <button
+                      <motion.button
                         key={opt.value}
                         type="button"
                         onClick={() => setFormData(prev => ({ ...prev, occupancy: opt.value }))}
+                        whileTap={{ scale: 0.97 }}
+                        transition={{ type: 'spring', stiffness: 400, damping: 17 }}
                         className={`px-4 py-2.5 rounded-xl border text-sm font-medium transition-all ${
                           formData.occupancy === opt.value ? 'bg-pink-500/20 border-pink-500 text-white' : 'bg-gray-900/50 border-white/10 text-purple-200 hover:bg-white/10'
                         }`}
                       >
                         {opt.label}
-                      </button>
+                      </motion.button>
                     ))}
                   </div>
                   <p className="text-purple-300/70 text-xs mt-1.5">Lenders use this for loan eligibility. Most homeowners select primary.</p>
@@ -337,14 +339,16 @@ export function OnboardingFlow() {
                       <p className="text-sm text-emerald-400/90" data-testid="carried-address">
                         Using: {formData.address}
                       </p>
-                      <button
+                      <motion.button
                         type="button"
                         onClick={() => setIsEditingAddress(true)}
+                        whileTap={{ scale: 0.9 }}
+                        transition={{ type: 'spring', stiffness: 400, damping: 17 }}
                         className="inline-flex items-center justify-center w-8 h-8 rounded-lg border border-white/20 bg-white/5 text-gray-400 hover:text-pink-400 hover:border-pink-500/50 hover:bg-pink-500/10 transition-colors focus:outline-none focus:ring-2 focus:ring-pink-500/50"
                         aria-label="Change address"
                       >
                         <Pencil size={14} />
-                      </button>
+                      </motion.button>
                     </div>
                   ) : null}
                   <div
@@ -354,13 +358,15 @@ export function OnboardingFlow() {
                     <div ref={addressContainerRef} className="flex-1 min-w-0 [&_.gmp-place-autocomplete-input]:!w-full [&_.gmp-place-autocomplete-input]:!py-4 [&_.gmp-place-autocomplete-input]:!pl-12 [&_.gmp-place-autocomplete-input]:!pr-4 [&_.gmp-place-autocomplete-input]:!bg-transparent [&_.gmp-place-autocomplete-input]:!border-0 [&_.gmp-place-autocomplete-input]:!text-white [&_.gmp-place-autocomplete-input]:!focus:ring-2 [&_.gmp-place-autocomplete-input]:!focus:ring-pink-500/50" style={{ minHeight: 52 }} />
                   </div>
                   {formData.address && isEditingAddress ? (
-                    <button
+                    <motion.button
                       type="button"
                       onClick={() => setIsEditingAddress(false)}
+                      whileTap={{ scale: 0.97 }}
+                      transition={{ type: 'spring', stiffness: 400, damping: 17 }}
                       className="mt-2 text-xs text-gray-500 hover:text-gray-400 transition-colors"
                     >
                       Cancel
-                    </button>
+                    </motion.button>
                   ) : null}
                   <input type="hidden" id="address-onboarding-flow" name="address" value={formData.address} readOnly aria-hidden="true" />
                 </div>
@@ -434,10 +440,12 @@ export function OnboardingFlow() {
                       const Icon = goal.icon;
                       const isSelected = formData.goal === goal.id;
                       return (
-                        <button
+                        <motion.button
                           key={goal.id}
                           type="button"
                           onClick={() => setFormData(prev => ({ ...prev, goal: goal.id }))}
+                          whileTap={{ scale: 0.97 }}
+                          transition={{ type: 'spring', stiffness: 400, damping: 17 }}
                           className={`relative p-4 rounded-xl border text-center transition-all ${
                             isSelected
                               ? 'bg-pink-500/20 border-pink-500 shadow-lg shadow-pink-500/20'
@@ -452,7 +460,7 @@ export function OnboardingFlow() {
                           <Icon size={24} className={`mx-auto mb-2 ${isSelected ? 'text-pink-400' : 'text-gray-400'}`} />
                           <p className={`font-medium text-sm ${isSelected ? 'text-white' : 'text-gray-300'}`}>{goal.label}</p>
                           <p className="text-gray-500 text-xs mt-1 hidden sm:block">{goal.desc}</p>
-                        </button>
+                        </motion.button>
                       );
                     })}
                   </div>
@@ -468,10 +476,12 @@ export function OnboardingFlow() {
                       const Icon = timeline.icon;
                       const isSelected = formData.timeline === timeline.value;
                       return (
-                        <button
+                        <motion.button
                           key={timeline.value}
                           type="button"
                           onClick={() => setFormData(prev => ({ ...prev, timeline: timeline.value }))}
+                          whileTap={{ scale: 0.97 }}
+                          transition={{ type: 'spring', stiffness: 400, damping: 17 }}
                           className={`p-4 rounded-xl border flex flex-col items-center transition-all ${
                             isSelected
                               ? 'bg-pink-500/20 border-pink-500'
@@ -481,7 +491,7 @@ export function OnboardingFlow() {
                           <Icon size={20} className={`mb-2 ${isSelected ? 'text-pink-400' : 'text-gray-400'}`} />
                           <p className={`font-medium text-sm ${isSelected ? 'text-white' : 'text-gray-300'}`}>{timeline.label}</p>
                           <p className="text-gray-500 text-xs">{timeline.subtext}</p>
-                        </button>
+                        </motion.button>
                       );
                     })}
                   </div>
@@ -496,9 +506,12 @@ export function OnboardingFlow() {
               transition={{ delay: 0.8 }}
               className="mt-8 max-w-3xl mx-auto"
             >
-              <button
+              <motion.button
+                type="button"
                 onClick={handleSubmit}
                 disabled={!isFormValid || isSubmitting}
+                whileTap={!isSubmitting && isFormValid ? { scale: 0.98 } : undefined}
+                transition={{ type: 'spring', stiffness: 400, damping: 17 }}
                 className="w-full py-5 rounded-2xl bg-gradient-to-r from-pink-600 to-purple-600 text-white font-bold text-lg hover:from-pink-700 hover:to-purple-700 transition-all flex items-center justify-center gap-3 group disabled:opacity-50 disabled:cursor-not-allowed shadow-xl shadow-purple-900/20"
               >
                 {isSubmitting ? (
@@ -509,7 +522,7 @@ export function OnboardingFlow() {
                     <ArrowRight size={22} className="group-hover:translate-x-1 transition-transform" />
                   </>
                 )}
-              </button>
+              </motion.button>
               <p className="text-center text-gray-500 text-sm mt-4">
                 No credit card required • You'll see your numbers, then choose how to proceed
               </p>

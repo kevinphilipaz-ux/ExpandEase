@@ -3,6 +3,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { useProjectOptional } from '../context/ProjectContext';
 import { CADCheckoutModal } from '../components/CADCheckoutModal';
+import { ValueWithPop } from '../components/ui/ValueWithPop';
+import { useMilestoneConfetti } from '../hooks/useMilestoneConfetti';
 import {
   Download,
   Share2,
@@ -119,6 +121,8 @@ export function DesignPackage() {
   const totalCost = project?.financial?.totalCost ?? 415000;
   const totalValue = project?.financial?.totalValue ?? 1650000;
   const equityCreated = totalValue - totalCost;
+  const roiPercent = totalCost > 0 ? Math.round((totalValue / totalCost) * 100) : 0;
+  useMilestoneConfetti(equityCreated, roiPercent);
   const spaceAdded = project?.property && project?.wishlist
     ? Math.max(0, ((project.wishlist.bedrooms ?? 0) - (project.property.beds ?? 0)) * 250 + ((project.wishlist.bathrooms ?? 0) - (project.property.baths ?? 0)) * 100)
     : 1750;
@@ -219,18 +223,24 @@ export function DesignPackage() {
             </p>
           </div>
           <div className="flex flex-wrap gap-3">
-            <button
+            <motion.button
+              type="button"
               onClick={() => navigate('/contractor-review')}
+              whileTap={{ scale: 0.97 }}
+              transition={{ type: 'spring', stiffness: 400, damping: 17 }}
               className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 transition-all text-sm font-medium hover:scale-105 active:scale-95"
             >
               <Share2 size={16} /> Share with Contractor
-            </button>
-            <button
+            </motion.button>
+            <motion.button
+              type="button"
               onClick={() => setShowCADModal(true)}
+              whileTap={{ scale: 0.97 }}
+              transition={{ type: 'spring', stiffness: 400, damping: 17 }}
               className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-400 hover:to-purple-400 text-white font-bold transition-all text-sm shadow-xl shadow-pink-500/20 hover:scale-105 active:scale-95"
             >
               <Sparkles size={18} /> Upgrade to 3D CAD
-            </button>
+            </motion.button>
           </div>
         </motion.header>
 
@@ -242,7 +252,7 @@ export function DesignPackage() {
           className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 mb-8"
         >
           {[
-            { label: 'Equity Created', value: `+$${Math.round(equityCreated / 1000)}K`, sub: 'instant value add', valueClass: 'text-emerald-400', subClass: 'text-emerald-300/70', trend: '+18%' },
+            { label: 'Equity Created', valueNode: <ValueWithPop value={equityCreated} format="currency" prefix="+" className="text-emerald-400" />, sub: 'instant value add', valueClass: 'text-emerald-400', subClass: 'text-emerald-300/70', trend: '+18%' },
             { label: 'Projected Value', value: totalValue >= 1e6 ? `$${(totalValue / 1e6).toFixed(2)}M` : `$${(totalValue / 1000).toFixed(0)}K`, sub: 'after completion', valueClass: 'text-white', subClass: 'text-purple-300/70' },
             { label: 'Space Added', value: `+${spaceAdded.toLocaleString()}`, unit: ' sq ft', sub: 'more space', valueClass: 'text-amber-300', subClass: 'text-amber-200/70' },
             { label: 'Monthly Savings', value: '$4,885', sub: 'vs. buying new', valueClass: 'text-emerald-400', subClass: 'text-emerald-300/70', highlight: true }
@@ -260,7 +270,7 @@ export function DesignPackage() {
               )}
               <p className="text-[10px] md:text-xs text-purple-200 uppercase tracking-wider font-semibold mb-1">{kpi.label}</p>
               <div className="flex items-baseline justify-center gap-1">
-                <p className={`text-2xl md:text-3xl font-bold tabular-nums ${kpi.valueClass}`}>{kpi.value}</p>
+                <p className={`text-2xl md:text-3xl font-bold tabular-nums ${kpi.valueClass}`}>{'valueNode' in kpi && kpi.valueNode != null ? kpi.valueNode : kpi.value}</p>
                 {kpi.unit && <span className="text-sm text-amber-200/60">{kpi.unit}</span>}
               </div>
               <div className="flex items-center justify-center gap-2 mt-1">
@@ -288,12 +298,15 @@ export function DesignPackage() {
               <h2 className="text-xl md:text-2xl font-bold text-white mb-1">Your Proposed Home</h2>
               <p className="text-sm text-purple-200/70">Preview your expansion from every angle</p>
             </div>
-            <button
+            <motion.button
+              type="button"
               onClick={() => setShowBlueprint(true)}
+              whileTap={{ scale: 0.97 }}
+              transition={{ type: 'spring', stiffness: 400, damping: 17 }}
               className="hidden md:flex items-center gap-2 px-4 py-2 rounded-xl bg-blue-500/20 hover:bg-blue-500/30 border border-blue-400/30 text-blue-200 text-sm font-medium transition-all"
             >
               <Layers size={16} /> View Blueprints
-            </button>
+            </motion.button>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 h-auto md:h-[520px]">
