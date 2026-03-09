@@ -34,6 +34,8 @@ export function useGooglePlacesAutocomplete(
       return;
     }
 
+    let fallbackTimer: number | null = null;
+
     loadGoogleMapsScript()
       .then(() => {
         if (cancelled || !containerRef.current) return;
@@ -42,7 +44,7 @@ export function useGooglePlacesAutocomplete(
         const PlaceAutocompleteElement = places?.PlaceAutocompleteElement;
         if (!PlaceAutocompleteElement) {
           setUseFallback(true);
-          if (import.meta.env?.DEV) console.warn('[Google Places] PlaceAutocompleteElement not found. Use v=weekly and ensure Places API is enabled.');
+          if ((import.meta as { env?: { DEV?: boolean } }).env?.DEV) console.warn('[Google Places] PlaceAutocompleteElement not found. Use v=weekly and ensure Places API is enabled.');
           return;
         }
         // PlaceAutocompleteElement uses closed Shadow DOM; force open so we can remove the blue focus ring from the inner input
@@ -84,16 +86,30 @@ export function useGooglePlacesAutocomplete(
         };
 
         el.addEventListener('gmp-select', handleSelect as EventListener);
+
+        // If the key is restricted (e.g. wrong referrer on Vercel), the widget may render but the input can be missing or disabled. Fall back to plain input after a short delay.
+        fallbackTimer = window.setTimeout(() => {
+          if (cancelled || !containerRef.current) return;
+          const input = el.shadowRoot?.querySelector?.('input');
+          if (!input || input.disabled) {
+            setUseFallback(true);
+            if (elementRef.current && containerRef.current?.contains(elementRef.current)) {
+              elementRef.current.remove();
+            }
+            elementRef.current = null;
+          }
+        }, 1000);
       })
       .catch((err) => {
         setUseFallback(true);
-        if (import.meta.env?.DEV && err?.message) {
+        if ((import.meta as { env?: { DEV?: boolean } }).env?.DEV && err?.message) {
           console.warn('[Google Places]', err.message);
         }
       });
 
     return () => {
       cancelled = true;
+      if (fallbackTimer) window.clearTimeout(fallbackTimer);
       if (elementRef.current && containerRef.current?.contains(elementRef.current)) {
         elementRef.current.remove();
       }
