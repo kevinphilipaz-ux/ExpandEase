@@ -1,5 +1,5 @@
-import { useEffect, useRef } from 'react';
-import { loadGoogleMapsScript } from '../utils/loadGoogleMapsScript';
+import { useEffect, useRef, useState } from 'react';
+import { loadGoogleMapsScript, isGoogleMapsConfigured } from '../utils/loadGoogleMapsScript';
 
 export interface UseGooglePlacesAutocompleteOptions {
   /** Called when user selects a place from the dropdown. */
@@ -13,6 +13,7 @@ export interface UseGooglePlacesAutocompleteOptions {
 /**
  * Mount Google PlaceAutocompleteElement (new API) into a container.
  * Use a container ref; the hook appends the element and listens for gmp-select.
+ * Returns useFallback: true when the API key is missing or script fails (e.g. on Vercel without env var or domain allowed).
  */
 export function useGooglePlacesAutocomplete(
   containerRef: React.RefObject<HTMLDivElement | null>,
@@ -22,11 +23,16 @@ export function useGooglePlacesAutocomplete(
   const onPlaceSelectRef = useRef(onPlaceSelect);
   onPlaceSelectRef.current = onPlaceSelect;
   const elementRef = useRef<HTMLElement | null>(null);
+  const [useFallback, setUseFallback] = useState(false);
 
   useEffect(() => {
     if (!enabled || !containerRef.current) return;
 
     let cancelled = false;
+    if (!isGoogleMapsConfigured()) {
+      setUseFallback(true);
+      return;
+    }
 
     loadGoogleMapsScript()
       .then(() => {
@@ -35,6 +41,7 @@ export function useGooglePlacesAutocomplete(
         const places = google?.maps?.places as { PlaceAutocompleteElement?: new (opts?: { includedRegionCodes?: string[] }) => HTMLElement } | undefined;
         const PlaceAutocompleteElement = places?.PlaceAutocompleteElement;
         if (!PlaceAutocompleteElement) {
+          setUseFallback(true);
           if (import.meta.env?.DEV) console.warn('[Google Places] PlaceAutocompleteElement not found. Use v=weekly and ensure Places API is enabled.');
           return;
         }
@@ -79,6 +86,7 @@ export function useGooglePlacesAutocomplete(
         el.addEventListener('gmp-select', handleSelect as EventListener);
       })
       .catch((err) => {
+        setUseFallback(true);
         if (import.meta.env?.DEV && err?.message) {
           console.warn('[Google Places]', err.message);
         }
@@ -93,5 +101,5 @@ export function useGooglePlacesAutocomplete(
     };
   }, [enabled, includedRegionCodes?.join(',')]);
 
-  return {};
+  return { useFallback };
 }

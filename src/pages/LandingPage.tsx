@@ -88,7 +88,7 @@ export function LandingPage() {
 
   const { subject, loading: propertyLoading } = usePropertyData(address.trim().length >= 5 ? address : '');
 
-  useGooglePlacesAutocomplete(addressContainerRef, {
+  const { useFallback: addressUseFallback } = useGooglePlacesAutocomplete(addressContainerRef, {
     onPlaceSelect: setAddress,
     enabled: true,
   });
@@ -279,11 +279,23 @@ export function LandingPage() {
                   </span>
                 </div>
 
-                {/* Address: Google PlaceAutocompleteElement; wrapper has overflow-visible + z-index so dropdown isn't clipped */}
+                {/* Address: Google PlaceAutocompleteElement when available; otherwise plain input so Vercel/production still works */}
                 <div className="mb-6 relative z-[100] overflow-visible">
                   <div className="relative flex items-center bg-gray-900/50 border border-white/20 rounded-xl overflow-visible transition-[border-color,box-shadow] duration-200 focus-within:border-white/35 focus-within:ring-1 focus-within:ring-white/10 focus-within:ring-inset">
                     <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 z-10 pointer-events-none" size={18} />
-                    <div ref={addressContainerRef} className="flex-1 min-w-0 [&_.gmp-place-autocomplete-input]:!w-full [&_.gmp-place-autocomplete-input]:!py-3 [&_.gmp-place-autocomplete-input]:!pl-11 [&_.gmp-place-autocomplete-input]:!pr-4 [&_.gmp-place-autocomplete-input]:!bg-transparent [&_.gmp-place-autocomplete-input]:!border-0 [&_.gmp-place-autocomplete-input]:!text-white [&_.gmp-place-autocomplete-input]:!placeholder-gray-500 [&_.gmp-place-autocomplete-input]:!focus:outline-none [&_.gmp-place-autocomplete-input]:!focus:ring-0 [&_.gmp-place-autocomplete-input]:!focus:shadow-none" style={{ minHeight: 48 }} />
+                    {addressUseFallback ? (
+                      <input
+                        type="text"
+                        value={address}
+                        onChange={(e) => setAddress(e.target.value)}
+                        placeholder="Enter your address (e.g. 123 Main St, City, State)"
+                        className="flex-1 min-w-0 w-full py-3 pl-11 pr-4 bg-transparent border-0 text-white placeholder-gray-500 focus:outline-none focus:ring-0 focus:shadow-none"
+                        style={{ minHeight: 48 }}
+                        aria-label="Property address"
+                      />
+                    ) : (
+                      <div ref={addressContainerRef} className="flex-1 min-w-0 [&_.gmp-place-autocomplete-input]:!w-full [&_.gmp-place-autocomplete-input]:!py-3 [&_.gmp-place-autocomplete-input]:!pl-11 [&_.gmp-place-autocomplete-input]:!pr-4 [&_.gmp-place-autocomplete-input]:!bg-transparent [&_.gmp-place-autocomplete-input]:!border-0 [&_.gmp-place-autocomplete-input]:!text-white [&_.gmp-place-autocomplete-input]:!placeholder-gray-500 [&_.gmp-place-autocomplete-input]:!focus:outline-none [&_.gmp-place-autocomplete-input]:!focus:ring-0 [&_.gmp-place-autocomplete-input]:!focus:shadow-none" style={{ minHeight: 48 }} />
+                    )}
                   </div>
                   <input type="hidden" id="property-address" name="address" value={address} readOnly aria-hidden="true" />
                 </div>
