@@ -1,6 +1,6 @@
 # Deploy ExpandEase to Vercel
 
-Your site will stay online 24/7—no need to keep your laptop open.
+Your site will stay online 24/7—no need to keep your laptop open. Set `VITE_GOOGLE_MAPS_API_KEY` in Vercel for address autocomplete.
 
 ## 1. Put your code on GitHub
 
