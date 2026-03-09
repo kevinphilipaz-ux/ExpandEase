@@ -104,26 +104,35 @@ export function LandingPage() {
     }
   }, [address, propertyLoading, subject.value]);
 
-  const handleGetStarted = async () => {
-    setIsSubmitting(true);
-    // Use React state first; if user typed in Google widget without selecting, read from the input
+  /** Get current address from React state or from the Google Places input (so it works from nav or form). */
+  const getCurrentAddress = (): string => {
     let addressToUse = address.trim();
     if (!addressToUse && addressContainerRef.current) {
       const input = addressContainerRef.current.querySelector('input');
       const raw = input?.value?.trim();
       if (raw) addressToUse = raw;
     }
+    return addressToUse;
+  };
+
+  /** Sync address to onboarding context and project, then navigate so onboarding page shows the address. */
+  const goToOnboarding = (addressToUse: string) => {
     updateData({ address: addressToUse });
     setAddress(addressToUse);
-    // Persist to project for CAD/contractor/lender — single source of truth
     if (projectCtx) {
       projectCtx.updateProject({
         property: { ...projectCtx.project.property, address: addressToUse },
         onboarding: { ...projectCtx.project.onboarding, estimatedRenovationBudget: renovationBudget },
       });
     }
-    await new Promise(resolve => setTimeout(resolve, 800));
     navigate('/onboarding', { state: { address: addressToUse } });
+  };
+
+  const handleGetStarted = async () => {
+    setIsSubmitting(true);
+    const addressToUse = getCurrentAddress();
+    await new Promise(resolve => setTimeout(resolve, 800));
+    goToOnboarding(addressToUse);
   };
 
   const formatCurrency = (val: number) => {
@@ -168,7 +177,7 @@ export function LandingPage() {
             </span>
           </div>
           <button 
-            onClick={() => navigate('/onboarding')}
+            onClick={() => goToOnboarding(getCurrentAddress())}
             className="px-5 py-2.5 min-h-[44px] bg-white/10 hover:bg-white/20 rounded-xl text-sm font-medium transition-colors flex items-center"
           >
             Get Started
