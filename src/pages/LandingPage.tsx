@@ -1,8 +1,8 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, FormEvent } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { WaitlistSection } from '../components/landing/WaitlistSection';
 import { AuthUI } from '../components/AuthUI';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useOnboarding } from '../context/OnboardingContext';
 import { useProjectOptional } from '../context/ProjectContext';
 import { useGooglePlacesAutocomplete } from '../hooks/useGooglePlacesAutocomplete';
@@ -50,17 +50,50 @@ const TESTIMONIALS = [
 ];
 
 const TRUST_LOGOS = [
-  "Fixed-Price Scope",
+  "Fixed-Price SOW*",
   "Borrow on Completed Value",
   "Keep Your Low Rate",
-  "See Numbers First"
+  "Real-Time Estimates"
 ];
 
 const STATS = [
   { value: "Future Value", label: "Borrow on Completed Value", icon: TrendingUp },
   { value: "Stay Put", label: "Keep Your Low Rate", icon: Home },
-  { value: "Instant", label: "See the Numbers First", icon: Star },
+  { value: "Real-Time Estimates", label: "See the Numbers First", icon: Star },
   { value: "Your Timeline", label: "Plan at Your Pace", icon: Calendar },
+];
+
+type FunnelStep = 1 | 2 | 3;
+
+const SCOPE_OPTIONS = [
+  {
+    id: 'kitchen',
+    label: 'Luxury Kitchen Overhaul',
+    description: 'Stone, custom cabinetry, hidden appliances.',
+    image:
+      'https://images.pexels.com/photos/37347/modern-kitchen-luxury-interior-37347.jpeg?auto=compress&w=1200'
+  },
+  {
+    id: 'suite',
+    label: 'French Country Master Suite Addition',
+    description: 'Vaulted ceilings, spa bath, private terrace.',
+    image:
+      'https://images.pexels.com/photos/279719/pexels-photo-279719.jpeg?auto=compress&w=1200'
+  },
+  {
+    id: 'adu',
+    label: 'Backyard ADU / Guest House',
+    description: 'Perfect for guests, in-laws, or rental.',
+    image:
+      'https://images.pexels.com/photos/1396122/pexels-photo-1396122.jpeg?auto=compress&w=1200'
+  },
+  {
+    id: 'full-gut',
+    label: 'Full Gut Remodel',
+    description: 'Reimagine everything. Layout, finishes, systems.',
+    image:
+      'https://images.pexels.com/photos/1457842/pexels-photo-1457842.jpeg?auto=compress&w=1200'
+  }
 ];
 
 const INDUSTRY_QUOTES = [
@@ -76,6 +109,8 @@ export function LandingPage() {
   const { updateData } = useOnboarding();
   const projectCtx = useProjectOptional();
   const [address, setAddress] = useState('');
+  const [funnelStep, setFunnelStep] = useState<FunnelStep>(1);
+  const [selectedScope, setSelectedScope] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [homeValue, setHomeValue] = useState(750000);
   const [renovationBudget, setRenovationBudget] = useState(200000);
@@ -90,8 +125,11 @@ export function LandingPage() {
   const { subject, loading: propertyLoading } = usePropertyData(address.trim().length >= 5 ? address : '');
 
   const { useFallback: addressUseFallback } = useGooglePlacesAutocomplete(addressContainerRef, {
-    onPlaceSelect: setAddress,
-    enabled: true,
+    onPlaceSelect: (formatted) => {
+      setAddress(formatted);
+      setFunnelStep(2);
+    },
+    enabled: funnelStep === 1,
   });
 
   // Use API property value when we have an address; otherwise default. Show home value on next page.
@@ -160,237 +198,385 @@ export function LandingPage() {
   const newValue = homeValue + valueIncrease;
   const equityCreated = valueIncrease - renovationCost;
 
+  const handleAddressSubmit = (e: FormEvent) => {
+    e.preventDefault();
+    const addr = getCurrentAddress();
+    if (!addr) return;
+    setAddress(addr);
+    setFunnelStep(2);
+  };
+
+  const handleScopeSelect = (id: string) => {
+    setSelectedScope(id);
+    setTimeout(() => setFunnelStep(3), 220);
+  };
+
+  const stepVariants = {
+    initial: { opacity: 0, y: 12, scale: 0.98 },
+    animate: { opacity: 1, y: 0, scale: 1 },
+    exit: { opacity: 0, y: -12, scale: 0.98 }
+  };
+
   return (
     <div className="min-h-screen w-full bg-[#0a0612] text-white overflow-x-hidden">
-      {/* Announcement Bar */}
-      <div className="bg-gradient-to-r from-pink-600 to-purple-600 text-white text-center py-2 px-4 text-xs sm:text-sm">
+      {/* Announcement Bar — subtle pulse */}
+      <div className="bg-gradient-to-r from-pink-600 to-purple-600 text-white text-center py-2 px-4 text-xs sm:text-sm animate-pulse-opacity" style={{ animationDuration: '6s' }}>
         <span className="font-medium">🎉 New: Get pre-qualified for renovation financing in 60 seconds</span>
       </div>
 
-      {/* Navigation */}
+      {/* Navigation — minimal; hero wizard is the single entry */}
       <nav className="sticky top-0 z-50 bg-[#0a0612]/80 backdrop-blur-xl border-b border-white/10">
-        <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
+        <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <div className="p-2 bg-gradient-to-br from-pink-500 to-purple-600 rounded-xl">
               <Home size={20} className="text-white" />
             </div>
             <span className="font-bold text-xl">ExpandEase</span>
           </div>
-          <div className="hidden md:flex items-center gap-6 text-sm text-gray-400">
+          <div className="hidden md:flex items-center gap-6 text-sm text-gray-500">
             <span className="flex items-center gap-2">
-              <Shield size={14} className="text-emerald-400" />
-              Fixed-Price Guarantee
+              <Shield size={14} className="text-emerald-500/80" />
+              Fixed-Price SOW*
             </span>
             <span className="flex items-center gap-2">
-              <Zap size={14} className="text-blue-400" />
-              See Your Numbers First
+              <Zap size={14} className="text-blue-400/80" />
+              Real-Time Estimates
             </span>
           </div>
-          <button 
-            onClick={() => goToOnboarding(getCurrentAddress())}
-            className="px-5 py-2.5 min-h-[44px] bg-white/10 hover:bg-white/20 rounded-xl text-sm font-medium transition-colors flex items-center"
-          >
-            Get Started
-          </button>
         </div>
       </nav>
 
-      {/* Hero Section */}
-      <section className="relative min-h-[90vh] flex items-center">
-        {/* Background */}
-        <div className="absolute inset-0 z-0">
-          <img
-            src="https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?auto=format&fit=crop&w=2000&q=80"
-            alt="Modern home"
-            className="w-full h-full object-cover opacity-40"
-          />
-          <div className="absolute inset-0 bg-gradient-to-b from-[#0a0612]/50 via-[#0a0612]/80 to-[#0a0612]" />
+      {/* Hero: Headline → Subhead → Calculator + Math side by side, all on one view */}
+      <section className="relative overflow-hidden bg-[#05030A]">
+        {/* Abstract gradient orbs only — no photo cutoff; seamless AI-forward base */}
+        <div className="pointer-events-none absolute inset-0">
+          {/* Top-center purple glow — very visible at top */}
+          <div className="absolute inset-x-0 top-0 h-[70%] bg-[radial-gradient(ellipse_100%_80%_at_50%_0%,rgba(168,85,247,0.25),_transparent_60%)] animate-pulse-glow" />
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_60%_at_50%_0%,rgba(168,85,247,0.18),_transparent_50%)] animate-pulse-glow-slow" style={{ animationDelay: '-2s' }} />
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_70%_50%_at_80%_20%,rgba(236,72,153,0.15),_transparent_45%)] animate-pulse-glow" style={{ animationDelay: '-1s' }} />
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_60%_40%_at_20%_80%,rgba(52,211,153,0.12),_transparent_40%)] animate-pulse-glow-slow" style={{ animationDelay: '-3.5s' }} />
+          <div className="absolute -top-40 -right-40 h-96 w-96 rounded-full bg-gradient-to-br from-fuchsia-500/40 via-purple-500/35 to-sky-500/25 blur-3xl animate-pulse-glow" style={{ animationDelay: '-0.5s' }} />
+          <div className="absolute -bottom-32 -left-16 h-96 w-96 rounded-full bg-gradient-to-tr from-emerald-400/30 via-purple-400/25 to-pink-500/20 blur-3xl animate-pulse-glow-slow" style={{ animationDelay: '-2.5s' }} />
+          {/* Seamless fade into page background — no hard line */}
+          <div className="absolute inset-x-0 bottom-0 h-2/3 bg-gradient-to-t from-[#0a0612] via-[#0a0612]/80 to-transparent" aria-hidden />
         </div>
 
-        <div className="relative z-10 max-w-7xl mx-auto px-4 py-10 sm:py-16 w-full">
-          <div className="grid lg:grid-cols-2 gap-8 sm:gap-12 items-center">
-            {/* Left: Copy */}
+        <div className="relative z-10 mx-auto w-full max-w-6xl px-4 py-8 sm:py-10">
+          {/* Headline + single subhead only */}
+          <motion.div
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4 }}
+            className="mb-6 sm:mb-8"
+          >
+            <h1 className="text-3xl font-semibold tracking-tight text-white sm:text-4xl lg:text-5xl">
+              <span className="block">Don&apos;t Move.</span>
+              <span className="block bg-gradient-to-r from-fuchsia-400 via-purple-300 to-sky-300 bg-clip-text text-transparent">
+                Improve.
+              </span>
+            </h1>
+            <p className="mt-3 max-w-xl text-sm text-zinc-300 sm:text-base">
+              Keep your current low mortgage rate and your neighborhood. Transform your
+              home into your dream space without the massive penalties of moving.
+            </p>
+          </motion.div>
+
+          {/* Calculator + Math side by side (stack on mobile) */}
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-stretch lg:gap-6">
+            {/* Left: Savings calculator */}
             <motion.div
-              initial={{ opacity: 0, y: 20 }}
+              id="scope-funnel"
+              initial={{ opacity: 0, y: 12 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6 }}
+              transition={{ delay: 0.1, duration: 0.4 }}
+              className="relative min-w-0 flex-1 lg:max-w-md"
             >
-              <motion.div
-                initial={{ scale: 0.9, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                transition={{ delay: 0.2 }}
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-sm font-medium mb-6"
-              >
-                <Zap size={16} />
-                Average homeowner creates $240K in equity
-              </motion.div>
-
-              <h1 className="text-5xl md:text-6xl lg:text-7xl font-bold leading-[1.1] mb-6">
-                Don't Move.
-                <span className="block bg-gradient-to-r from-pink-400 via-purple-400 to-blue-400 bg-clip-text text-transparent">
-                  Improve.
+            {/* Outer glow / halo — subtle pulse */}
+            <div className="absolute -inset-[1px] rounded-[1.5rem] bg-gradient-to-br from-fuchsia-500/50 via-purple-500/40 to-emerald-400/30 opacity-80 blur-sm animate-pulse-opacity" aria-hidden style={{ animationDuration: '5s' }} />
+            <div className="absolute -inset-[1px] rounded-[1.5rem] bg-gradient-to-br from-fuchsia-400/30 via-purple-400/20 to-emerald-400/20 opacity-60 animate-pulse-glow-slow" aria-hidden style={{ animationDuration: '5s', animationDelay: '-1s' }} />
+            {/* Card */}
+            <div className="relative w-full max-w-md rounded-3xl border border-white/10 bg-white/[0.06] p-4 text-white shadow-[0_0_40px_rgba(168,85,247,0.15),0_18px_60px_rgba(0,0,0,0.5)] backdrop-blur-2xl sm:p-5 lg:p-6 ring-1 ring-white/5">
+            <div className="mb-4 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-purple-500/20 text-xs font-medium text-purple-200">
+                  EE
                 </span>
-              </h1>
-
-              <p className="text-xl text-gray-300 mb-4 max-w-lg">
-                Keep your low mortgage rate. Keep your neighborhood. Transform your home into your dream space.
-              </p>
-
-              <p className="text-gray-400 mb-4 max-w-lg">
-                Moving costs $60K+ in fees and you'd trade your 3% rate for 7%. See how much wealth you can build by renovating instead.
-              </p>
-              <p className="text-gray-500 text-sm italic mb-8 max-w-lg">
-                Heard it before? "Just buy a new house." "Renovations wreck marriages." We get it — and that's why we built a process that removes the chaos: clear scope, fixed price, one source of truth.
-              </p>
-
-              {/* Social Proof */}
-              <div className="flex items-center gap-4 mb-8">
-                <div className="flex -space-x-2">
-                  {['ST', 'JR', 'CF', 'MC'].map((initials, i) => (
-                    <div
-                      key={initials}
-                      className="w-10 h-10 rounded-full bg-gradient-to-br from-gray-200 to-gray-400 border-2 border-[#0a0612] flex items-center justify-center text-xs font-bold text-gray-800"
-                      style={{ zIndex: 4 - i }}
-                    >
-                      {initials}
-                    </div>
-                  ))}
-                </div>
-                <div>
-                  <div className="flex items-center gap-1">
-                    {[1, 2, 3, 4, 5].map((star) => (
-                      <Star key={star} size={14} className="text-yellow-400 fill-yellow-400" />
-                    ))}
-                  </div>
-                  <p className="text-sm text-gray-400">See your renovation potential before you commit</p>
-                </div>
+                <span className="text-xs font-medium uppercase tracking-[0.16em] text-zinc-400">
+                  Your savings calculator
+                </span>
               </div>
-
-              {/* Quick Stats */}
-              <div className="grid grid-cols-3 gap-4 max-w-md">
-                {STATS.slice(0, 3).map((stat) => {
-                  const Icon = stat.icon;
-                  return (
-                    <div key={stat.label} className="text-center">
-                      <div className="flex items-center justify-center gap-1 mb-1">
-                        <Icon size={14} className="text-pink-400" />
-                        <span className="text-xl font-bold text-white">{stat.value}</span>
-                      </div>
-                      <p className="text-xs text-gray-400">{stat.label}</p>
-                    </div>
-                  );
-                })}
-              </div>
-            </motion.div>
-
-            {/* Right: Calculator Card */}
-            <motion.div
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: 0.4, duration: 0.6 }}
-            >
-              <div className="bg-white/10 backdrop-blur-xl rounded-3xl border border-white/20 p-6 shadow-2xl shadow-purple-900/20">
-                <div className="flex items-center justify-between mb-6">
-                  <h3 className="text-xl font-bold">See Your Potential</h3>
-                  <span className="text-xs text-emerald-400 flex items-center gap-1">
-                    <TrendingUp size={12} />
-                    LIVE CALCULATOR
-                  </span>
-                </div>
-
-                {/* Address: Google PlaceAutocompleteElement when available; otherwise plain input so Vercel/production still works */}
-                <div className="mb-6 relative z-[100] overflow-visible">
-                  <div className="relative flex items-center bg-gray-900/50 border border-white/20 rounded-xl overflow-visible transition-[border-color,box-shadow] duration-200 focus-within:border-white/35 focus-within:ring-1 focus-within:ring-white/10 focus-within:ring-inset">
-                    <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 z-10 pointer-events-none" size={18} />
-                    {addressUseFallback ? (
-                      <input
-                        type="text"
-                        value={address}
-                        onChange={(e) => setAddress(e.target.value)}
-                        placeholder="Enter your address (e.g. 123 Main St, City, State)"
-                        className="flex-1 min-w-0 w-full py-3 pl-11 pr-4 bg-transparent border-0 text-white placeholder-gray-500 focus:outline-none focus:ring-0 focus:shadow-none"
-                        style={{ minHeight: 48 }}
-                        aria-label="Property address"
-                      />
-                    ) : (
-                      <div ref={addressContainerRef} className="flex-1 min-w-0 [&_.gmp-place-autocomplete-input]:!w-full [&_.gmp-place-autocomplete-input]:!py-3 [&_.gmp-place-autocomplete-input]:!pl-11 [&_.gmp-place-autocomplete-input]:!pr-4 [&_.gmp-place-autocomplete-input]:!bg-transparent [&_.gmp-place-autocomplete-input]:!border-0 [&_.gmp-place-autocomplete-input]:!text-white [&_.gmp-place-autocomplete-input]:!placeholder-gray-500 [&_.gmp-place-autocomplete-input]:!focus:outline-none [&_.gmp-place-autocomplete-input]:!focus:ring-0 [&_.gmp-place-autocomplete-input]:!focus:shadow-none" style={{ minHeight: 48 }} />
-                    )}
-                  </div>
-                  <input type="hidden" id="property-address" name="address" value={address} readOnly aria-hidden="true" />
-                </div>
-
-                {/* Estimated Renovation Budget Slider — home value comes from your address and is shown on the next page */}
-                <div className="mb-6">
-                  <div className="flex justify-between text-sm mb-2">
-                    <span className="text-gray-400">Estimated Renovation Budget</span>
-                    <span className="text-white font-bold">{formatCurrency(renovationBudget)}</span>
-                  </div>
-                  <input
-                    type="range"
-                    min="75000"
-                    max="2000000"
-                    step="25000"
-                    value={renovationBudget}
-                    onChange={(e) => setRenovationBudget(Number(e.target.value))}
-                    className="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-pink-500"
+              <div className="flex items-center gap-1.5">
+                {[1, 2, 3].map((s) => (
+                  <div
+                    key={s}
+                    className={`h-1.5 w-6 rounded-full transition-all ${
+                      funnelStep >= s
+                        ? 'bg-gradient-to-r from-fuchsia-400 via-purple-400 to-emerald-400'
+                        : 'bg-zinc-700'
+                    }`}
                   />
-                  <div className="flex justify-between text-xs text-gray-500 mt-1">
-                    <span>$75K</span>
-                    <span>$2M+</span>
-                  </div>
-                </div>
-
-                {/* Results */}
-                <div className="bg-black/30 rounded-xl p-4 border border-white/10 mb-6">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <p className="text-xs text-gray-400 mb-1">Renovation Cost</p>
-                      <p className="text-lg font-bold text-white">{formatCurrency(renovationCost)}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-gray-400 mb-1">New Value</p>
-                      <p className="text-lg font-bold text-emerald-400">{formatCurrency(newValue)}</p>
-                    </div>
-                  </div>
-                  <div className="mt-3 pt-3 border-t border-white/10">
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm text-gray-300">Equity Created</span>
-                      <span className="text-xl font-bold text-emerald-400">+{formatCurrency(equityCreated)}</span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* CTA Button */}
-                <motion.button
-                  type="button"
-                  onClick={handleGetStarted}
-                  disabled={isSubmitting}
-                  whileTap={!isSubmitting ? { scale: 0.98 } : undefined}
-                  transition={{ type: 'spring', stiffness: 400, damping: 17 }}
-                  className="w-full py-4 rounded-xl bg-gradient-to-r from-pink-600 to-purple-600 text-white font-bold text-lg hover:from-pink-700 hover:to-purple-700 transition-all flex items-center justify-center gap-2 group"
-                >
-                  {isSubmitting ? (
-                    <span className="animate-pulse">Analyzing...</span>
-                  ) : (
-                    <>
-                      Get Your Free Analysis
-                      <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" />
-                    </>
-                  )}
-                </motion.button>
-
-                <p className="text-center text-gray-500 text-xs mt-3">
-                  No credit card required • Instant results
-                </p>
+                ))}
               </div>
+            </div>
+
+            <div className={`relative ${funnelStep === 1 ? 'min-h-0' : 'min-h-[260px]'}`}>
+              <AnimatePresence mode="wait">
+                {funnelStep === 1 && (
+                  <motion.div
+                    key="step-1"
+                    variants={stepVariants}
+                    initial="initial"
+                    animate="animate"
+                    exit="exit"
+                    transition={{ duration: 0.25, ease: 'easeOut' }}
+                    className="space-y-2"
+                  >
+                    <div className="space-y-0.5">
+                      <p className="text-xs font-medium uppercase tracking-[0.18em] text-zinc-400">
+                        Step 1 — Address
+                      </p>
+                      <p className="text-sm text-zinc-200">
+                        Let&apos;s start with where you live in Scottsdale.
+                      </p>
+                    </div>
+
+                    <form onSubmit={handleAddressSubmit} className="space-y-2">
+                      <div className="relative">
+                        {/* Address bar glow — 2x intensity */}
+                        <div className="absolute -inset-0.5 rounded-2xl bg-gradient-to-r from-fuchsia-500/40 via-purple-500/30 to-emerald-500/20 opacity-100 blur-[4px]" aria-hidden />
+                        <div className="absolute -inset-px rounded-2xl bg-gradient-to-r from-fuchsia-400/50 via-purple-400/40 to-emerald-400/30 opacity-100" aria-hidden />
+                        <div className="relative">
+                          <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-zinc-500">
+                            <MapPin className="h-4 w-4" />
+                          </div>
+                          {addressUseFallback ? (
+                            <input
+                              type="text"
+                              value={address}
+                              onChange={(e) => setAddress(e.target.value)}
+                              placeholder="Enter your home address..."
+                              className="w-full rounded-2xl border border-white/15 bg-black/40 px-10 py-3 text-sm text-white placeholder:text-zinc-500 shadow-inner outline-none ring-0 transition focus:border-fuchsia-400/50 focus:bg-black/50 focus:ring-2 focus:ring-fuchsia-400/30 focus:shadow-[0_0_40px_rgba(217,70,239,0.4)]"
+                            />
+                          ) : (
+                            <div
+                              ref={addressContainerRef}
+                              className="min-h-[48px] w-full rounded-2xl border border-white/15 bg-black/40 px-10 py-1 text-sm text-white shadow-inner outline-none ring-0 transition focus-within:border-fuchsia-400/50 focus-within:bg-black/50 focus-within:ring-2 focus-within:ring-fuchsia-400/30 focus-within:shadow-[0_0_40px_rgba(217,70,239,0.4)] [&_.gmp-place-autocomplete-input]:!w-full [&_.gmp-place-autocomplete-input]:!bg-transparent [&_.gmp-place-autocomplete-input]:!border-0 [&_.gmp-place-autocomplete-input]:!text-white [&_.gmp-place-autocomplete-input]:!placeholder-zinc-500 [&_.gmp-place-autocomplete-input]:!px-0"
+                            />
+                          )}
+                        </div>
+                      </div>
+                      <div className="relative">
+                        {/* Continue bar glow — same style as address */}
+                        <div className="absolute -inset-0.5 rounded-2xl bg-gradient-to-r from-fuchsia-500/40 via-purple-500/30 to-emerald-500/20 opacity-100 blur-[4px]" aria-hidden />
+                        <div className="absolute -inset-px rounded-2xl bg-gradient-to-r from-fuchsia-400/50 via-purple-400/40 to-emerald-400/30 opacity-100" aria-hidden />
+                        <button
+                          type="submit"
+                          className="relative w-full inline-flex items-center justify-center rounded-2xl bg-white/5 px-3 py-2.5 text-xs font-medium text-zinc-200 ring-1 ring-white/10 transition hover:bg-white/10 hover:text-white hover:shadow-[0_0_30px_rgba(217,70,239,0.25)]"
+                        >
+                          Continue
+                        </button>
+                      </div>
+                    </form>
+                  </motion.div>
+                )}
+
+                {funnelStep === 2 && (
+                  <motion.div
+                    key="step-2"
+                    variants={stepVariants}
+                    initial="initial"
+                    animate="animate"
+                    exit="exit"
+                    transition={{ duration: 0.25, ease: 'easeOut' }}
+                    className="space-y-3"
+                  >
+                    <div className="space-y-1.5">
+                      <p className="text-xs font-medium uppercase tracking-[0.18em] text-zinc-400">
+                        Step 2 — Dream Scope
+                      </p>
+                      <p className="text-sm text-zinc-200">
+                        Choose the upgrade that feels most like your dream outcome.
+                      </p>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3">
+                      {SCOPE_OPTIONS.map((option) => {
+                        const isActive = selectedScope === option.id;
+                        return (
+                          <button
+                            key={option.id}
+                            type="button"
+                            onClick={() => handleScopeSelect(option.id)}
+                            className={`group flex flex-col overflow-hidden rounded-2xl border bg-white/5 text-left text-xs transition focus:outline-none ${
+                              isActive
+                                ? 'border-purple-400/80 shadow-[0_0_25px_rgba(168,85,247,0.7)]'
+                                : 'border-white/8 hover:border-purple-300/60 hover:bg-white/10'
+                            }`}
+                          >
+                            <div
+                              className="relative h-20 w-full overflow-hidden"
+                              style={{
+                                backgroundImage: `linear-gradient(to top, rgba(0,0,0,0.8), rgba(0,0,0,0.1)), url(${option.image})`,
+                                backgroundSize: 'cover',
+                                backgroundPosition: 'center'
+                              }}
+                            >
+                              <div className="absolute inset-0 border-b border-white/10" />
+                            </div>
+                            <div className="flex flex-1 flex-col gap-1 px-3 py-2.5">
+                              <span className="text-[11px] font-medium text-zinc-50">
+                                {option.label}
+                              </span>
+                              <span className="line-clamp-2 text-[10px] text-zinc-400">
+                                {option.description}
+                              </span>
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    <p className="text-[11px] text-zinc-500">
+                      We&apos;ll auto-calc cost, new value, and equity for your
+                      neighborhood next.
+                    </p>
+                  </motion.div>
+                )}
+
+                {funnelStep === 3 && (
+                  <motion.div
+                    key="step-3"
+                    variants={stepVariants}
+                    initial="initial"
+                    animate="animate"
+                    exit="exit"
+                    transition={{ duration: 0.25, ease: 'easeOut' }}
+                    className="space-y-4"
+                  >
+                    <div className="space-y-1.5">
+                      <p className="text-xs font-medium uppercase tracking-[0.18em] text-zinc-400">
+                        Step 3 — Financial Reality Check
+                      </p>
+                      <p className="text-sm text-zinc-200">
+                        Here&apos;s the mock impact of your{' '}
+                        {selectedScope
+                          ? SCOPE_OPTIONS.find((o) => o.id === selectedScope)?.label
+                          : 'renovation'}
+                        .
+                      </p>
+                    </div>
+
+                    <div className="rounded-2xl border border-white/10 bg-black/50 p-4 shadow-[0_18px_55px_rgba(0,0,0,0.9)] backdrop-blur-xl">
+                      <div className="mb-3 text-[11px] text-zinc-400">
+                        <span>
+                          {address || 'Scottsdale, AZ — Sample Property'}
+                        </span>
+                      </div>
+
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="text-[11px] text-zinc-400">
+                              Estimated Renovation Cost
+                            </p>
+                            <p className="font-mono text-lg text-white">$300,000</p>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-[11px] text-zinc-400">
+                              Cost to Move (Comparable Home)
+                            </p>
+                            <p className="font-mono text-lg text-red-400 line-through">
+                              $68,500 in dead fees
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center justify-between rounded-xl bg-emerald-500/10 px-3 py-2">
+                          <div>
+                            <p className="text-[11px] text-emerald-300">
+                              Net Upfront Savings
+                            </p>
+                            <p className="font-mono text-xl text-[#00FF00]">
+                              $68,500
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+
+                      <p className="mt-3 text-[10px] text-gray-500">
+                        Estimates based on regional RSMeans data and average Maricopa County closing costs. Actuals may vary.
+                      </p>
+
+                      <button
+                        type="button"
+                        onClick={handleGetStarted}
+                        disabled={isSubmitting}
+                        className="mt-4 inline-flex w-full items-center justify-between rounded-2xl bg-gradient-to-r from-fuchsia-500 via-purple-500 to-pink-500 px-4 py-2.5 text-xs font-medium text-white shadow-[0_0_30px_rgba(216,70,239,0.6)] transition hover:translate-y-0.5 hover:shadow-[0_0_40px_rgba(216,70,239,0.9)] focus:outline-none focus-visible:ring-2 focus-visible:ring-fuchsia-400 focus-visible:ring-offset-2 focus-visible:ring-offset-black disabled:opacity-70"
+                      >
+                        <span>
+                          {isSubmitting ? 'Analyzing…' : 'Get Your Free 3D Analysis'}
+                        </span>
+                        <span className="flex items-center gap-1 text-[11px] text-pink-100">
+                          <span>Lightning-fast</span>
+                          <ArrowRight size={14} aria-hidden />
+                        </span>
+                      </button>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+
+            </div>
+          </motion.div>
+
+            {/* Right: Math summary — always visible next to calculator */}
+            <motion.div
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.2, duration: 0.4 }}
+              className="rounded-2xl border border-white/10 bg-white/[0.06] p-3 shadow-[0_0_30px_rgba(168,85,247,0.1)] backdrop-blur-xl ring-1 ring-white/5 sm:p-4 lg:min-w-[260px] lg:max-w-sm"
+            >
+              <p className="mb-2 text-[11px] font-medium uppercase tracking-[0.18em] text-zinc-400">
+                The math
+              </p>
+              <div className="space-y-2">
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <p className="text-[10px] text-zinc-400">Renovation Cost</p>
+                    <p className="font-mono text-sm text-white">$300,000</p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] text-zinc-400">Value Added to Home</p>
+                    <p className="font-mono text-sm text-emerald-400">$480,000</p>
+                  </div>
+                </div>
+                <div className="flex items-center justify-between gap-2 rounded-lg bg-white/5 px-2 py-1">
+                  <span className="text-[10px] text-zinc-400">Equity increase</span>
+                  <span className="font-mono text-xs text-emerald-400">+$180K</span>
+                </div>
+                <div className="flex items-center justify-between gap-2 rounded-lg bg-white/5 px-2 py-1">
+                  <span className="text-[10px] text-zinc-400">Monthly saved vs. 7%</span>
+                  <span className="font-mono text-xs text-[#00FF00]">~$1,200</span>
+                </div>
+                <div className="flex items-center justify-between gap-2 rounded-lg bg-red-500/5 border border-red-400/20 px-2 py-1">
+                  <span className="text-[10px] text-zinc-400">Cost to Move</span>
+                  <span className="font-mono text-xs text-red-400 line-through">$68,500</span>
+                </div>
+              </div>
+              <p className="mt-2 text-[10px] text-gray-500 leading-snug">
+                Estimates based on regional RSMeans data and average Maricopa County closing costs. Actuals may vary.
+              </p>
             </motion.div>
           </div>
         </div>
       </section>
 
-      {/* The Math Section */}
-      <section className="py-20 px-4">
-        <div className="max-w-6xl mx-auto">
+      {/* The Math Section — same base as page; no visual break */}
+      <section className="relative py-20 px-4">
+        {/* Subtle continuation of gradient atmosphere — gentle pulse */}
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_100%_60%_at_50%_0%,rgba(88,28,135,0.12),_transparent_70%)] animate-pulse-opacity" aria-hidden style={{ animationDuration: '7s' }} />
+        <div className="relative z-10 max-w-6xl mx-auto">
           <div className="text-center mb-12">
             <h2 className="text-3xl md:text-5xl font-bold mb-4">The Math Doesn't Lie</h2>
             <p className="text-gray-400 text-lg max-w-2xl mx-auto">
@@ -468,8 +654,9 @@ export function LandingPage() {
       </section>
 
       {/* What We've Heard — broker skepticism reframed (quote slider) */}
-      <section className="py-20 px-4 bg-gradient-to-b from-[#0a0612] to-purple-950/20">
-        <div className="max-w-4xl mx-auto">
+      <section className="py-20 px-4 relative bg-gradient-to-b from-[#0a0612] to-purple-950/20">
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_80%_50%_at_50%_50%,rgba(168,85,247,0.08),_transparent_70%)] animate-pulse-opacity" aria-hidden style={{ animationDuration: '8s' }} />
+        <div className="relative z-10 max-w-4xl mx-auto">
           <div className="flex items-center gap-3 justify-center mb-6">
             <MessageSquare size={22} className="text-pink-400" />
             <h2 className="text-3xl md:text-4xl font-bold text-center">We've heard it before.</h2>
@@ -496,9 +683,10 @@ export function LandingPage() {
         </div>
       </section>
 
-      {/* How It Works */}
-      <section className="py-20 px-4 bg-gradient-to-b from-[#0a0612] to-purple-950/30">
-        <div className="max-w-6xl mx-auto">
+      {/* How It Works — gradient pulse */}
+      <section className="py-20 px-4 relative bg-gradient-to-b from-[#0a0612] to-purple-950/30">
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_80%_50%_at_50%_30%,rgba(168,85,247,0.1),_transparent_60%)] animate-pulse-opacity" aria-hidden style={{ animationDuration: '6s' }} />
+        <div className="relative z-10 max-w-6xl mx-auto">
           <div className="text-center mb-16">
             <h2 className="text-3xl md:text-5xl font-bold mb-4">How It Works</h2>
             <p className="text-gray-400">From dream to done in three simple steps.</p>
@@ -546,9 +734,10 @@ export function LandingPage() {
         </div>
       </section>
 
-      {/* Testimonials */}
-      <section className="py-20 px-4">
-        <div className="max-w-6xl mx-auto">
+      {/* Testimonials — gradient pulse */}
+      <section className="py-20 px-4 relative">
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_70%_60%_at_50%_50%,rgba(168,85,247,0.08),_transparent_65%)] animate-pulse-opacity" aria-hidden style={{ animationDuration: '7s' }} />
+        <div className="relative z-10 max-w-6xl mx-auto">
           <div className="text-center mb-12">
             <h2 className="text-3xl md:text-5xl font-bold mb-4">Real Homeowners, Real Results</h2>
           </div>
@@ -577,9 +766,10 @@ export function LandingPage() {
         </div>
       </section>
 
-      {/* Trust Badges */}
-      <section className="py-12 px-4 border-y border-white/10">
-        <div className="max-w-6xl mx-auto">
+      {/* Trust Badges — gradient pulse */}
+      <section className="py-12 px-4 relative border-y border-white/10">
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_60%_80%_at_50%_50%,rgba(168,85,247,0.06),_transparent_70%)] animate-pulse-opacity" aria-hidden style={{ animationDuration: '5s' }} />
+        <div className="relative z-10 max-w-6xl mx-auto">
           <div className="flex flex-wrap items-center justify-center gap-8 md:gap-16">
             {TRUST_LOGOS.map((badge) => (
               <div key={badge} className="flex items-center gap-2 text-gray-400">
@@ -591,9 +781,9 @@ export function LandingPage() {
         </div>
       </section>
 
-      {/* Final CTA */}
+      {/* Final CTA — gradient pulse */}
       <section className="py-20 px-4 relative overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-r from-pink-600/20 to-purple-600/20" />
+        <div className="absolute inset-0 bg-gradient-to-r from-pink-600/20 to-purple-600/20 animate-pulse-opacity" style={{ animationDuration: '6s' }} />
         <div className="max-w-4xl mx-auto text-center relative z-10">
           <h2 className="text-4xl md:text-6xl font-bold mb-6">
             Ready to Unlock Your Home's Potential?
@@ -620,22 +810,31 @@ export function LandingPage() {
 
       {/* Footer */}
       <footer className="bg-black py-12 px-4 border-t border-white/10">
-        <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-8">
-          <div className="flex items-center gap-2">
-            <Home className="text-pink-500" size={24} />
-            <span className="text-xl font-bold text-white">ExpandEase</span>
+        <div className="max-w-7xl mx-auto">
+          <div className="flex flex-col md:flex-row justify-between items-center gap-8 mb-8">
+            <div className="flex items-center gap-2">
+              <Home className="text-pink-500" size={24} />
+              <span className="text-xl font-bold text-white">ExpandEase</span>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-6 text-sm text-gray-400">
+              <a href="#" className="hover:text-white transition-colors">About</a>
+              <a href="#" className="hover:text-white transition-colors">How It Works</a>
+              <Link to="/for-contractors" className="hover:text-white transition-colors">For Contractors</Link>
+              <Link to="/for-lenders" className="hover:text-white transition-colors">For Lenders</Link>
+              <AuthUI />
+            </div>
+
+            <div className="text-xs text-gray-600">
+              <p>© 2025 ExpandEase. All rights reserved.</p>
+            </div>
           </div>
 
-          <div className="flex flex-wrap items-center gap-6 text-sm text-gray-400">
-            <a href="#" className="hover:text-white transition-colors">About</a>
-            <a href="#" className="hover:text-white transition-colors">How It Works</a>
-            <Link to="/for-contractors" className="hover:text-white transition-colors">For Contractors</Link>
-            <Link to="/for-lenders" className="hover:text-white transition-colors">For Lenders</Link>
-            <AuthUI />
-          </div>
-
-          <div className="text-xs text-gray-600">
-            <p>© 2025 ExpandEase. All rights reserved.</p>
+          {/* Global Legal / Compliance Block — legible but recedes */}
+          <div className="max-w-4xl border-t border-white/5 pt-6">
+            <p className="text-xs text-gray-500 leading-relaxed">
+              *Average upfront savings based on 6% agent commissions, standard closing costs, and moving expenses for an $800,000+ home in the Phoenix metro area. Fixed-price guarantees apply only to the finalized Statement of Work post-site inspection. Unforeseen structural conditions excluded. ExpandEase is a technology platform; all financing is subject to credit approval and final After-Repair Value (ARV) appraisal by licensed lending partners.
+            </p>
           </div>
         </div>
       </footer>

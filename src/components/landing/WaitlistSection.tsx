@@ -20,8 +20,9 @@ export function WaitlistSection() {
   };
 
   return (
-    <section className="py-20 px-4 border-t border-white/10">
-      <div className="max-w-2xl mx-auto text-center">
+    <section className="py-20 px-4 relative border-t border-white/10">
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_70%_50%_at_50%_50%,rgba(168,85,247,0.07),_transparent_65%)] animate-pulse-opacity" aria-hidden style={{ animationDuration: '6s' }} />
+      <div className="relative z-10 max-w-2xl mx-auto text-center">
         <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-pink-500/10 border border-pink-500/20 text-pink-300 text-sm font-medium mb-6">
           Coming to Your City
         </div>
