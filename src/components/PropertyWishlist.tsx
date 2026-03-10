@@ -1218,8 +1218,8 @@ export function PropertyWishlist({ onProgressUpdate, initialBedrooms, initialBat
             <p className="text-base font-bold text-white mt-1 truncate">${totalCost.toLocaleString()}</p>
           </div>
           <div className="flex-1 min-w-0 rounded-lg bg-white/5 border border-white/10 px-3 py-2.5 backdrop-blur-sm">
-            <p className="text-purple-300 text-xs uppercase tracking-wider font-semibold truncate flex items-center gap-1">
-              Est. future value
+            <p className="text-purple-300 text-xs uppercase tracking-wider font-semibold flex items-center gap-1 min-w-0">
+              <span className="truncate">Est. future value</span>
               <InfoTooltip content={CALCULATION_TOOLTIPS.postRenovationValue} label="How we calculate post-renovation value" />
             </p>
             <p className="text-base font-bold text-white mt-1 truncate">{formatSummaryCurrency(summaryMetrics.postRenovationValue)}</p>
@@ -1233,8 +1233,8 @@ export function PropertyWishlist({ onProgressUpdate, initialBedrooms, initialBat
             </p>
           </div>
           <div className="flex-1 min-w-0 rounded-lg bg-emerald-500/10 border border-emerald-500/20 px-3 py-2.5 backdrop-blur-sm">
-            <p className="text-emerald-300 text-xs uppercase tracking-wider font-semibold truncate flex items-center gap-1">
-              Monthly savings
+            <p className="text-emerald-300 text-xs uppercase tracking-wider font-semibold flex items-center gap-1 min-w-0">
+              <span className="truncate">Monthly savings</span>
               <InfoTooltip content={CALCULATION_TOOLTIPS.monthlySavings} label="How we calculate monthly savings" />
             </p>
             {summaryMetrics.monthlySavings > 0 ? (
