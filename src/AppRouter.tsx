@@ -9,6 +9,7 @@ import { ForLenders } from './pages/ForLenders';
 import { ContractorReview } from './pages/ContractorReview';
 import { ApprovedProjectPlan } from './pages/ApprovedProjectPlan';
 import { OnboardingProvider, useOnboarding } from './context/OnboardingContext';
+import { AuthProvider } from './context/AuthContext';
 import { ProjectProvider, useProjectOptional } from './context/ProjectContext';
 
 /** Sets the browser tab title to a personalized value per route (e.g. "Kevin's Dream Home Analysis | ExpandEase"). */
@@ -37,6 +38,7 @@ function DocumentTitle() {
 export function AppRouter() {
   return (
     <OnboardingProvider>
+      <AuthProvider>
       <ProjectProviderWrapper>
       <BrowserRouter>
         <DocumentTitle />
@@ -52,6 +54,7 @@ export function AppRouter() {
         </Routes>
       </BrowserRouter>
       </ProjectProviderWrapper>
+      </AuthProvider>
     </OnboardingProvider>
   );
 }

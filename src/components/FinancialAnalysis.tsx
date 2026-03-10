@@ -2,6 +2,8 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { useProjectOptional } from '../context/ProjectContext';
 import { ValueWithPop } from './ui/ValueWithPop';
+import { InfoTooltip } from './ui/InfoTooltip';
+import { CALCULATION_TOOLTIPS } from '../constants/calculationExplanations';
 import { useMilestoneConfetti } from '../hooks/useMilestoneConfetti';
 import {
   TrendingUp,
@@ -15,7 +17,8 @@ import {
   ToggleLeft,
   ToggleRight,
   SlidersHorizontal,
-  Info
+  Info,
+  Lightbulb
 } from 'lucide-react';
 
 interface FinancialAnalysisProps {
@@ -32,21 +35,37 @@ export interface LineItem {
   roiPct: number;
   /** Short amenity description for "what you're getting" */
   amenity?: string;
+  /** One-line benefit for "what you're getting" detail */
+  benefit?: string;
 }
 
 const DEFAULT_LINE_ITEMS: LineItem[] = [
-  { id: 'kitchen', label: 'Kitchen renovation', category: 'Kitchen', cost: 120000, valueAdded: 114000, roiPct: 95, amenity: 'New cabinets, counters & appliances' },
-  { id: 'bath-add', label: 'Bathroom additions', category: 'Bathrooms', cost: 165000, valueAdded: 140250, roiPct: 85, amenity: 'Additional full baths' },
-  { id: 'bedroom', label: 'Bedroom expansion', category: 'Rooms', cost: 145000, valueAdded: 155150, roiPct: 107, amenity: 'Larger bedrooms / master suite' },
-  { id: 'flooring', label: 'Flooring throughout', category: 'Interior', cost: 55000, valueAdded: 60500, roiPct: 110, amenity: 'Hardwood & tile' },
-  { id: 'exterior', label: 'Exterior updates', category: 'Exterior', cost: 60000, valueAdded: 48000, roiPct: 80, amenity: 'Siding, windows & doors' },
-  { id: 'systems', label: 'Systems & electrical', category: 'Systems', cost: 30000, valueAdded: 25500, roiPct: 85, amenity: 'HVAC, electrical & plumbing' },
+  { id: 'kitchen', label: 'Kitchen renovation', category: 'Kitchen', cost: 120000, valueAdded: 114000, roiPct: 95, amenity: 'New cabinets, counters & appliances', benefit: 'Premium finishes that buyers pay for' },
+  { id: 'bath-add', label: 'Bathroom additions', category: 'Bathrooms', cost: 165000, valueAdded: 140250, roiPct: 85, amenity: 'Additional full baths', benefit: 'Better bed/bath ratio and daily comfort' },
+  { id: 'bedroom', label: 'Bedroom expansion', category: 'Rooms', cost: 145000, valueAdded: 155150, roiPct: 107, amenity: 'Larger bedrooms / master suite', benefit: 'More space and stronger comps' },
+  { id: 'flooring', label: 'Flooring throughout', category: 'Interior', cost: 55000, valueAdded: 60500, roiPct: 110, amenity: 'Hardwood & tile', benefit: 'Durable, desirable surfaces throughout' },
+  { id: 'exterior', label: 'Exterior updates', category: 'Exterior', cost: 60000, valueAdded: 48000, roiPct: 80, amenity: 'Siding, windows & doors', benefit: 'Curb appeal and efficiency' },
+  { id: 'systems', label: 'Systems & electrical', category: 'Systems', cost: 30000, valueAdded: 25500, roiPct: 85, amenity: 'HVAC, electrical & plumbing', benefit: 'Reliability and peace of mind' },
+  { id: 'pool', label: 'Pool & outdoor', category: 'Outdoor', cost: 95000, valueAdded: 38000, roiPct: 40, amenity: 'Pool & outdoor living', benefit: 'Lifestyle upgrade and outdoor flow' },
 ];
 
-const CURRENT_HOME_VALUE = 2700000;
+/** Fallback only when project.property.currentValue is missing; must match PropertyWishlist default so analysis stays in sync with property panel. */
+const DEFAULT_CURRENT_HOME_VALUE = 800_000;
 const CURRENT_MONTHLY_PAYMENT = 3250;
 const RATE_ANNUAL = 0.068;
+const MARKET_RATE_ANNUAL = 0.068;
 const TERM_YEARS = 30;
+/** When existing balance is unknown, assume this LTV of current value for "Save vs. comparable" so we don't overstate savings. */
+const ESTIMATED_LTV_WHEN_BALANCE_UNKNOWN = 0.75;
+
+/** Derive loan principal from monthly P&I (so we can infer existing balance from current payment + rate + term). */
+function principalFromPayment(monthlyPmt: number, annualRate: number, termYears: number): number {
+  if (monthlyPmt <= 0 || annualRate < 0) return 0;
+  const r = annualRate / 12;
+  const n = termYears * 12;
+  if (r === 0) return monthlyPmt * n;
+  return (monthlyPmt * (1 - Math.pow(1 + r, -n))) / r;
+}
 
 const formatCurrency = (val: number) => {
   if (val >= 1000000) return `$${(val / 1000000).toFixed(2)}M`;
@@ -71,6 +90,8 @@ export function FinancialAnalysis({ onProgressUpdate }: FinancialAnalysisProps) 
   const [monthlyIncome, setMonthlyIncome] = useState(fin?.monthlyIncome ?? 17000);
   const [monthlyDebts, setMonthlyDebts] = useState(fin?.monthlyDebts ?? 4500);
   const [targetBudget, setTargetBudget] = useState<number | null>(fin?.targetBudget ?? null);
+  const [currentMonthlyPayment, setCurrentMonthlyPayment] = useState<number | ''>(fin?.currentMonthlyPayment ?? '');
+  const [downPaymentAtPurchase, setDownPaymentAtPurchase] = useState<number | ''>(fin?.downPaymentAtPurchase ?? '');
   const [existingMortgageBalance, setExistingMortgageBalance] = useState<number | ''>(fin?.existingMortgageBalance ?? '');
   const [paymentSlider, setPaymentSlider] = useState(0); // extra $/month user is willing to consider
 
@@ -87,12 +108,14 @@ export function FinancialAnalysis({ onProgressUpdate }: FinancialAnalysisProps) 
         monthlyIncome,
         monthlyDebts,
         targetBudget: targetBudget ?? undefined,
+        currentMonthlyPayment: typeof currentMonthlyPayment === 'number' ? currentMonthlyPayment : undefined,
+        downPaymentAtPurchase: typeof downPaymentAtPurchase === 'number' ? downPaymentAtPurchase : undefined,
         existingMortgageBalance: typeof existingMortgageBalance === 'number' ? existingMortgageBalance : undefined,
         enabledLineItemIds: Array.from(enabledIds),
       },
     });
   // eslint-disable-next-line react-hooks/exhaustive-deps -- projectCtx is stable; we only persist when user inputs change
-  }, [monthlyIncome, monthlyDebts, targetBudget, existingMortgageBalance, enabledIds]);
+  }, [monthlyIncome, monthlyDebts, targetBudget, currentMonthlyPayment, downPaymentAtPurchase, existingMortgageBalance, enabledIds]);
 
   const toggleItem = (id: string) => {
     setEnabledIds((prev) => {
@@ -108,20 +131,57 @@ export function FinancialAnalysis({ onProgressUpdate }: FinancialAnalysisProps) 
     [lineItems, enabledIds]
   );
 
+  const currentHomeValue = projectCtx?.project?.property?.currentValue ?? DEFAULT_CURRENT_HOME_VALUE;
+  const userRateDecimal = (projectCtx?.project?.onboarding?.mortgageRate ?? RATE_ANNUAL * 100) / 100;
+
   const totals = useMemo(() => {
     const totalCost = enabledItems.reduce((s, i) => s + i.cost, 0);
     const totalValue = enabledItems.reduce((s, i) => s + i.valueAdded, 0);
     const netEquity = totalValue - totalCost;
     const roiPct = totalCost > 0 ? Math.round((totalValue / totalCost) * 100) : 0;
-    const postRenovationValue = CURRENT_HOME_VALUE + totalValue;
+    const postRenovationValue = currentHomeValue + totalValue;
+
+    const hasManualBalance = typeof existingMortgageBalance === 'number' && existingMortgageBalance > 0;
+    const paymentDerivedBalance =
+      typeof currentMonthlyPayment === 'number' && currentMonthlyPayment > 0
+        ? principalFromPayment(currentMonthlyPayment, userRateDecimal, TERM_YEARS)
+        : 0;
+    const existingBalance = hasManualBalance
+      ? existingMortgageBalance
+      : paymentDerivedBalance > 0
+        ? paymentDerivedBalance
+        : currentHomeValue * ESTIMATED_LTV_WHEN_BALANCE_UNKNOWN;
+    const principalAfterReno = existingBalance + totalCost;
+    const monthlyP = (principal: number, annualRate: number) => {
+      if (principal <= 0) return 0;
+      const r = annualRate / 12;
+      const n = TERM_YEARS * 12;
+      if (r === 0) return principal / n;
+      return (principal * r * Math.pow(1 + r, n)) / (Math.pow(1 + r, n) - 1);
+    };
+    const yourPayment = monthlyP(principalAfterReno, userRateDecimal);
+    const comparableLoanAmount = 0.8 * postRenovationValue;
+    const comparablePayment = monthlyP(comparableLoanAmount, MARKET_RATE_ANNUAL);
+    const monthlySavingsVsComparable = Math.round(comparablePayment - yourPayment);
+
     return {
       totalCost,
       totalValue,
       netEquity,
       roiPct,
       postRenovationValue,
+      monthlySavingsVsComparable,
+      /** When we derived balance from current payment (and user didn't override), show it so they see the link. */
+      derivedBalanceFromPayment: !hasManualBalance && paymentDerivedBalance > 0 ? paymentDerivedBalance : undefined,
     };
-  }, [enabledItems]);
+  }, [enabledItems, currentHomeValue, userRateDecimal, existingMortgageBalance, currentMonthlyPayment]);
+
+  /** Full-scope "vision" totals (all line items) for comparison with optimized scope */
+  const visionTotals = useMemo(() => {
+    const totalCost = lineItems.reduce((s, i) => s + i.cost, 0);
+    const totalValue = lineItems.reduce((s, i) => s + i.valueAdded, 0);
+    return { totalCost, totalValue };
+  }, [lineItems]);
 
   useMilestoneConfetti(totals.netEquity, totals.roiPct);
 
@@ -164,6 +224,57 @@ export function FinancialAnalysis({ onProgressUpdate }: FinancialAnalysisProps) 
     return suggestions;
   }, [targetBudget, gapToTarget, lineItems, enabledIds]);
 
+  /** High-value recommendations: remove low-ROI items (e.g. pool) or add high-ROI / ratio-balancing items. Toggling applies the suggestion; when none left, card hides. */
+  interface OptimizationSuggestion {
+    id: string;
+    type: 'remove' | 'add';
+    label: string;
+    message: string;
+  }
+  const roomForOptimizationSuggestions = useMemo((): OptimizationSuggestion[] => {
+    const out: OptimizationSuggestion[] = [];
+    for (const item of lineItems) {
+      const enabled = enabledIds.has(item.id);
+      if (enabled && item.id === 'pool') {
+        out.push({
+          id: item.id,
+          type: 'remove',
+          label: item.label,
+          message: 'Removing the pool lowers project cost; pools often don\'t add to sale price.',
+        });
+      } else if (enabled && item.roiPct < 75) {
+        out.push({
+          id: item.id,
+          type: 'remove',
+          label: item.label,
+          message: `Removing ${item.label.toLowerCase()} lowers cost with minimal impact on value.`,
+        });
+      } else if (!enabled && item.id === 'bath-add') {
+        out.push({
+          id: item.id,
+          type: 'add',
+          label: item.label,
+          message: 'Adding a bathroom balances your bed/bath ratio and can raise the value of your house.',
+        });
+      } else if (!enabled && item.id === 'bedroom') {
+        out.push({
+          id: item.id,
+          type: 'add',
+          label: item.label,
+          message: 'Adding a full bedroom balances your home\'s ratio and adds value.',
+        });
+      } else if (!enabled && item.roiPct >= 95) {
+        out.push({
+          id: item.id,
+          type: 'add',
+          label: item.label,
+          message: `Adding ${item.label.toLowerCase()} can improve your blended ROI.`,
+        });
+      }
+    }
+    return out;
+  }, [lineItems, enabledIds]);
+
   const steps = [
     { step: 1, title: 'Lock your scope', detail: 'Use the toggles below to include only what you want. Your totals update live.' },
     { step: 2, title: 'Check affordability', detail: 'Enter income and debts above. We show DTI and whether you’re on track.' },
@@ -195,27 +306,43 @@ export function FinancialAnalysis({ onProgressUpdate }: FinancialAnalysisProps) 
               <p className="text-2xl font-bold text-white">{formatCurrency(totals.postRenovationValue)}</p>
             </div>
             <div className="bg-white/10 rounded-xl p-4 border border-white/10">
-              <p className="text-emerald-300/80 text-xs uppercase tracking-wider">Net equity created</p>
-              <p className="text-2xl font-bold text-emerald-400"><ValueWithPop value={totals.netEquity} format="currency" /></p>
-            </div>
-            <div className="bg-white/10 rounded-xl p-4 border border-white/10">
               <p className="text-emerald-300/80 text-xs uppercase tracking-wider">Total investment</p>
               <p className="text-2xl font-bold text-white">{formatCurrency(totals.totalCost)}</p>
             </div>
             <div className="bg-white/10 rounded-xl p-4 border border-white/10">
-              <p className="text-emerald-300/80 text-xs uppercase tracking-wider">Blended ROI</p>
+              <p className="text-emerald-300/80 text-xs uppercase tracking-wider flex items-center gap-1">
+                Blended ROI
+                <InfoTooltip content={CALCULATION_TOOLTIPS.roi} label="How we calculate ROI" />
+              </p>
               <p className="text-2xl font-bold text-emerald-400"><ValueWithPop value={totals.roiPct} format="percent" /></p>
             </div>
+            <div className="bg-white/10 rounded-xl p-4 border border-white/10">
+              <p className="text-emerald-300/80 text-xs uppercase tracking-wider flex items-center gap-1">
+                Monthly savings vs. comparable
+                <InfoTooltip content={CALCULATION_TOOLTIPS.monthlySavings} label="How we calculate monthly savings" />
+              </p>
+              <p className="text-2xl font-bold text-emerald-400">
+                {totals.monthlySavingsVsComparable >= 0
+                  ? `+${formatCurrencyFull(totals.monthlySavingsVsComparable)}/mo`
+                  : `${formatCurrencyFull(totals.monthlySavingsVsComparable)}/mo`}
+              </p>
+            </div>
           </div>
-          <p className="text-emerald-200/90 text-sm font-medium mb-2">What you’re getting</p>
+          <p className="text-emerald-200/90 text-sm font-medium mb-1">What you’re getting</p>
+          <p className="text-emerald-300/70 text-xs mb-3">
+            Your plan includes the scope below — each item adds real value to your home and lifestyle.
+          </p>
           <ul className="flex flex-wrap gap-2">
             {enabledItems.map((i) => (
               <li
                 key={i.id}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/10 text-emerald-100 text-sm"
+                className="inline-flex items-start gap-1.5 px-3 py-2 rounded-lg bg-white/10 text-emerald-100 min-w-0 max-w-[220px]"
               >
-                <CheckCircle2 size={14} className="text-emerald-400 shrink-0" />
-                {i.amenity ?? i.label}
+                <CheckCircle2 size={14} className="text-emerald-400 shrink-0 mt-0.5" />
+                <span className="text-sm">
+                  <span className="font-medium">{i.amenity ?? i.label}</span>
+                  {i.benefit != null && i.benefit !== '' && <span className="block text-emerald-200/80 text-xs mt-0.5">{i.benefit}</span>}
+                </span>
               </li>
             ))}
           </ul>
@@ -294,11 +421,41 @@ export function FinancialAnalysis({ onProgressUpdate }: FinancialAnalysisProps) 
             </tbody>
           </table>
         </div>
-        <div className="mt-4 pt-4 border-t border-white/10 flex flex-wrap justify-between items-center gap-4">
-          <div className="flex gap-6">
+        <div className="mt-4 pt-4 border-t border-white/10 space-y-4">
+          <div className="flex flex-wrap gap-6">
             <span className="text-purple-300">Total cost <span className="text-white font-bold">{formatCurrency(totals.totalCost)}</span></span>
             <span className="text-purple-300">Total value added <span className="text-emerald-400 font-bold">+{formatCurrency(totals.totalValue)}</span></span>
           </div>
+          <div className="rounded-xl bg-white/5 border border-white/10 p-4 space-y-2">
+            <p className="text-purple-300/80 text-xs uppercase tracking-wider font-medium">Vision vs. optimized</p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+              <div>
+                <span className="text-purple-300/80">Vision (full scope): </span>
+                <span className="text-white font-medium">{formatCurrency(visionTotals.totalCost)}</span>
+                <span className="text-purple-400/70"> cost</span>
+                <span className="text-white/60 mx-1">·</span>
+                <span className="text-emerald-300/90 font-medium">+{formatCurrency(visionTotals.totalValue)}</span>
+                <span className="text-purple-400/70"> value</span>
+              </div>
+              <div>
+                <span className="text-purple-300/80">Total value optimized for: </span>
+                <span className="text-emerald-400 font-bold">+{formatCurrency(totals.totalValue)}</span>
+                <span className="text-purple-400/70"> value</span>
+                <span className="text-white/60 mx-1">·</span>
+                <span className="text-white font-medium">{formatCurrency(totals.totalCost)}</span>
+                <span className="text-purple-400/70"> cost</span>
+              </div>
+            </div>
+            {(visionTotals.totalCost !== totals.totalCost || visionTotals.totalValue !== totals.totalValue) && (
+              <p className="text-purple-200/90 text-xs pt-1">
+                Saved by optimizing: <span className="text-emerald-400 font-medium">{formatCurrency(visionTotals.totalCost - totals.totalCost)}</span> cost
+                {visionTotals.totalValue !== totals.totalValue && (
+                  <> · <span className="text-amber-200/90">{formatCurrency(visionTotals.totalValue - totals.totalValue)}</span> value traded</>
+                )}
+              </p>
+            )}
+          </div>
+          <p className="text-purple-400/70 text-xs">Estimates only — not a quote. Get quotes from licensed contractors.</p>
         </div>
       </section>
 
@@ -397,7 +554,40 @@ export function FinancialAnalysis({ onProgressUpdate }: FinancialAnalysisProps) 
               </div>
             </div>
             <div className="flex justify-between items-center gap-4">
-              <label className="text-purple-300 text-sm">Existing mortgage balance (optional)</label>
+              <label className="text-purple-300 text-sm">Current monthly mortgage payment (P&I only)</label>
+              <div className="flex items-center">
+                <span className="text-gray-500 font-mono mr-1">$</span>
+                <input
+                  type="number"
+                  value={currentMonthlyPayment}
+                  onChange={(e) => {
+                    const v = e.target.value.replace(/\D/g, '');
+                    setCurrentMonthlyPayment(v === '' ? '' : Math.max(0, parseInt(v, 10) || 0));
+                  }}
+                  placeholder="e.g. 2500"
+                  className="w-32 px-2 py-1.5 rounded-lg bg-white/10 border border-white/20 text-white font-mono text-sm focus:outline-none focus:ring-2 focus:ring-purple-400/50 placeholder-purple-400/50"
+                />
+              </div>
+            </div>
+            <p className="text-purple-300/70 text-xs -mt-2">We use this with your rate (from onboarding) to estimate your loan balance for an accurate &quot;monthly savings vs. comparable&quot; number.</p>
+            <div className="flex justify-between items-center gap-4">
+              <label className="text-purple-300 text-sm">Down payment at purchase (optional)</label>
+              <div className="flex items-center">
+                <span className="text-gray-500 font-mono mr-1">$</span>
+                <input
+                  type="number"
+                  value={downPaymentAtPurchase}
+                  onChange={(e) => {
+                    const v = e.target.value.replace(/\D/g, '');
+                    setDownPaymentAtPurchase(v === '' ? '' : Math.max(0, parseInt(v, 10) || 0));
+                  }}
+                  placeholder="For context"
+                  className="w-32 px-2 py-1.5 rounded-lg bg-white/10 border border-white/20 text-white font-mono text-sm focus:outline-none focus:ring-2 focus:ring-purple-400/50 placeholder-purple-400/50"
+                />
+              </div>
+            </div>
+            <div className="flex justify-between items-center gap-4">
+              <label className="text-purple-300 text-sm">Existing mortgage balance (optional override)</label>
               <div className="flex items-center">
                 <span className="text-gray-500 font-mono mr-1">$</span>
                 <input
@@ -407,14 +597,20 @@ export function FinancialAnalysis({ onProgressUpdate }: FinancialAnalysisProps) 
                     const v = e.target.value.replace(/\D/g, '');
                     setExistingMortgageBalance(v === '' ? '' : Math.max(0, parseInt(v, 10) || 0));
                   }}
-                  placeholder="For lender"
+                  placeholder="Overrides balance from payment"
                   className="w-32 px-2 py-1.5 rounded-lg bg-white/10 border border-white/20 text-white font-mono text-sm focus:outline-none focus:ring-2 focus:ring-purple-400/50 placeholder-purple-400/50"
                 />
               </div>
             </div>
-            <p className="text-purple-300/70 text-xs -mt-2">Lenders use this for eligibility. Leave blank if unknown.</p>
+            <p className="text-purple-300/70 text-xs -mt-2">Leave blank to use balance derived from your current payment; set if you know the exact balance (e.g. for lender).</p>
           </div>
           <div className="space-y-3">
+            {totals.derivedBalanceFromPayment != null && (
+              <div className="flex justify-between items-center p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
+                <span className="text-emerald-200/90 text-sm">Estimated balance (from your payment)</span>
+                <span className="font-mono font-medium text-emerald-300">{formatCurrencyFull(totals.derivedBalanceFromPayment)}</span>
+              </div>
+            )}
             <div className="flex justify-between items-center p-3 rounded-lg bg-white/5 border border-white/10">
               <span className="text-purple-300 text-sm">New monthly payment (est.)</span>
               <span className="font-mono font-bold text-white">{formatCurrencyFull(paymentWithSlider)}</span>
@@ -479,6 +675,38 @@ export function FinancialAnalysis({ onProgressUpdate }: FinancialAnalysisProps) 
         </div>
       </section>
 
+      {/* ——— ROOM FOR OPTIMIZATION ——— */}
+      {roomForOptimizationSuggestions.length > 0 && (
+        <section className="bg-purple-500/10 rounded-2xl border border-purple-500/20 p-5">
+          <div className="flex items-center gap-2 mb-4">
+            <Lightbulb size={18} className="text-purple-300" />
+            <h3 className="font-semibold text-white">Room for Optimization</h3>
+          </div>
+          <p className="text-purple-200/90 text-sm mb-4">
+            Apply a suggestion below to update your plan. When all are applied, this card clears.
+          </p>
+          <ul className="space-y-3">
+            {roomForOptimizationSuggestions.map((s) => (
+              <li key={s.id}>
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 p-3 rounded-xl bg-white/5 border border-white/10">
+                  <div>
+                    <p className="font-medium text-white text-sm">{s.type === 'remove' ? 'Remove' : 'Add'}: {s.label}</p>
+                    <p className="text-purple-300/80 text-xs mt-0.5">{s.message}</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => toggleItem(s.id)}
+                    className="shrink-0 px-4 py-2 rounded-lg bg-purple-500/30 text-purple-200 text-sm font-medium hover:bg-purple-500/40 transition-colors"
+                  >
+                    {s.type === 'remove' ? 'Remove from plan' : 'Add to plan'}
+                  </button>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
       {/* ——— OPTIMIZE: TRIM TO BUDGET + LIFESTYLE SLIDER ——— */}
       <section className="bg-white/10 backdrop-blur-md rounded-2xl border border-white/20 p-5 space-y-6">
         <div className="flex items-center gap-2">
@@ -531,12 +759,41 @@ export function FinancialAnalysis({ onProgressUpdate }: FinancialAnalysisProps) 
       </section>
 
       {/* ——— BOTTOM LINE ——— */}
-      <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-4">
-        <p className="text-emerald-300 font-medium">Bottom line</p>
-        <p className="text-emerald-200/70 text-sm mt-1">
-          With your current selections you create <span className="text-emerald-400 font-bold">{formatCurrency(totals.netEquity)}</span> in net equity.
-          New value: <span className="text-white font-medium">{formatCurrency(totals.postRenovationValue)}</span>.
-          Toggle items above to refine your plan, then use affordability and the payment slider to see how to make it work.
+      <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-2xl p-6">
+        <p className="text-emerald-300 font-semibold uppercase tracking-wider text-sm mb-4">Bottom line</p>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+          <div>
+            <p className="text-emerald-300/80 text-xs uppercase tracking-wider">New home value</p>
+            <p className="text-lg font-bold text-white">{formatCurrency(totals.postRenovationValue)}</p>
+          </div>
+          <div>
+            <p className="text-emerald-300/80 text-xs uppercase tracking-wider">Total investment</p>
+            <p className="text-lg font-bold text-white">{formatCurrency(totals.totalCost)}</p>
+          </div>
+          <div>
+            <p className="text-emerald-300/80 text-xs uppercase tracking-wider flex items-center gap-1">
+              Blended ROI
+              <InfoTooltip content={CALCULATION_TOOLTIPS.roi} label="How we calculate ROI" />
+            </p>
+            <p className="text-lg font-bold text-emerald-400">{totals.roiPct}%</p>
+          </div>
+          <div>
+            <p className="text-emerald-300/80 text-xs uppercase tracking-wider flex items-center gap-1">
+              Monthly savings vs. comparable
+              <InfoTooltip content={CALCULATION_TOOLTIPS.monthlySavings} label="How we calculate monthly savings" />
+            </p>
+            <p className="text-lg font-bold text-emerald-400">
+              {totals.monthlySavingsVsComparable >= 0 ? '+' : ''}{formatCurrencyFull(totals.monthlySavingsVsComparable)}/mo
+            </p>
+          </div>
+        </div>
+        <p className="text-emerald-200/90 text-sm">
+          Toggle items above to refine your plan. Use the Room for Optimization suggestions when they appear, then check affordability and the payment slider to see how to make it work.
+          {totals.netEquity !== 0 && (
+            <span className="block mt-2 text-emerald-300/70">
+              Net equity impact from this scope: <span className={totals.netEquity >= 0 ? 'text-emerald-400 font-medium' : 'text-amber-300/90'}>{formatCurrency(totals.netEquity)}</span>.
+            </span>
+          )}
         </p>
       </div>
     </div>

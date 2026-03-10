@@ -162,6 +162,9 @@ export function ContractorReview() {
       </header>
 
       <main className="max-w-5xl mx-auto px-4 py-8">
+        <div className="mb-6 p-4 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 text-sm">
+          <strong>Contractor matching coming soon.</strong> Your plan is saved and ready to share when we launch. This preview shows what you’ll be able to send to contractors.
+        </div>
         <div className="mb-8 border-b border-gray-200 pb-8">
           <p className="text-blue-600 font-bold tracking-wider text-xs uppercase mb-2">Project #{projectIdShort}</p>
           <h1 className="text-3xl md:text-5xl font-bold text-gray-900 mb-4 tracking-tight">{projectName}</h1>

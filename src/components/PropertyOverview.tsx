@@ -66,6 +66,21 @@ export function PropertyOverview({ onProgressUpdate }: PropertyOverviewProps) {
     }
   }, [loading, subject.beds, subject.baths, projectCtx]);
 
+  // Keep project in sync with the property currently displayed (avoids crossover when switching addresses)
+  useEffect(() => {
+    if (!projectCtx || loading) return;
+    if (subject.value > 0 || (subject.beds > 0 && displayAddress)) {
+      projectCtx.updateProject({
+        property: {
+          ...projectCtx.project.property,
+          address: displayAddress,
+          ...(subject.value > 0 && { currentValue: subject.value }),
+          ...(subject.equity != null && subject.equity >= 0 && { equity: subject.equity }),
+        },
+      });
+    }
+  }, [loading, displayAddress, subject.value, subject.equity, subject.beds, projectCtx]);
+
   useEffect(() => {
     onProgressUpdate?.(100);
   }, [onProgressUpdate]);
@@ -256,6 +271,18 @@ export function PropertyOverview({ onProgressUpdate }: PropertyOverviewProps) {
           <p className="text-purple-300 text-xs uppercase tracking-wider mb-2">Current Equity</p>
           <p className="text-lg font-semibold text-emerald-400">{formatPrice(subject.equity)}</p>
         </div>
+
+        {subject.lastSalePrice != null && subject.lastSalePrice > 0 && (
+          <div className="bg-white/5 rounded-xl p-4 border border-white/10">
+            <p className="text-purple-300 text-xs uppercase tracking-wider mb-2">Last sold price</p>
+            <p className="text-lg font-semibold text-white">{formatPrice(subject.lastSalePrice)}</p>
+            {subject.lastSaleDate && (
+              <p className="text-purple-300/80 text-sm mt-1">
+                {new Date(subject.lastSaleDate).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}
+              </p>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Comparable Properties - Expandable */}

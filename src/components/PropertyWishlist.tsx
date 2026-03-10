@@ -2,6 +2,8 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useProjectOptional } from '../context/ProjectContext';
 import { ValueWithPop } from './ui/ValueWithPop';
+import { InfoTooltip } from './ui/InfoTooltip';
+import { CALCULATION_TOOLTIPS } from '../constants/calculationExplanations';
 import { useMilestoneConfetti } from '../hooks/useMilestoneConfetti';
 import {
   Home,
@@ -293,6 +295,8 @@ const calculateCosts = (selections: Record<string, any>) => {
 const TERM_YEARS = 30;
 const MARKET_RATE_ANNUAL = 0.068;
 const DEFAULT_CURRENT_HOME_VALUE = 800_000;
+/** When user hasn't set existing mortgage balance, assume this LTV of current value so "Save vs. comparable" isn't overstated. */
+const ESTIMATED_LTV_WHEN_BALANCE_UNKNOWN = 0.75;
 
 function monthlyPaymentForLoan(principal: number, annualRateDecimal: number, termYears: number): number {
   if (principal <= 0) return 0;
@@ -403,7 +407,12 @@ export function PropertyWishlist({ onProgressUpdate, initialBedrooms, initialBat
 
   const summaryMetrics = useMemo(() => {
     const currentValue = projectCtx?.project?.property?.currentValue ?? DEFAULT_CURRENT_HOME_VALUE;
-    const existingBalance = projectCtx?.project?.financial?.existingMortgageBalance ?? 0;
+    const rawBalance = projectCtx?.project?.financial?.existingMortgageBalance;
+    // If user hasn't set balance (e.g. they're still on Wishlist), use estimated balance so "Save vs. comparable" isn't overstated (e.g. $0 balance made savings look like $4k+/mo).
+    const existingBalance =
+      typeof rawBalance === 'number' && rawBalance >= 0
+        ? rawBalance
+        : currentValue * ESTIMATED_LTV_WHEN_BALANCE_UNKNOWN;
     const userRateDecimal = (projectCtx?.project?.onboarding?.mortgageRate ?? 3.5) / 100;
     const postRenovationValue = currentValue + totalValue;
     const principalAfterReno = existingBalance + totalCost;
@@ -415,6 +424,7 @@ export function PropertyWishlist({ onProgressUpdate, initialBedrooms, initialBat
       postRenovationValue,
       monthlySavings,
       valueAdded: totalValue,
+      usedEstimatedBalance: typeof rawBalance !== 'number' || rawBalance < 0,
     };
   }, [projectCtx?.project?.property?.currentValue, projectCtx?.project?.financial?.existingMortgageBalance, projectCtx?.project?.onboarding?.mortgageRate, totalCost, totalValue]);
 
@@ -1195,29 +1205,55 @@ export function PropertyWishlist({ onProgressUpdate, initialBedrooms, initialBat
 
   return (
     <div className="space-y-4">
-      {/* Section Header */}
-      <div className="flex items-center justify-between">
+      {/* Section Header + Metric Cards — horizontal strip */}
+      <div className="flex flex-col gap-3">
         <div>
           <h2 className="text-2xl font-bold text-white">Your Wishlist</h2>
-          <p className="text-purple-300/70 text-sm mt-1">Select features for your dream home renovation</p>
+          <p className="text-purple-300/70 text-sm mt-1">Select features for your dream home renovation.</p>
         </div>
-        {/* Running Total */}
-        <div className="text-right hidden sm:block">
-          <p className="text-purple-300 text-xs uppercase tracking-wider">Est. Renovation Cost</p>
-          <p className="text-2xl font-bold text-white">${totalCost.toLocaleString()}</p>
-          <p className="text-purple-300/90 text-xs uppercase tracking-wider mt-2">Est. future value</p>
-          <p className="text-lg font-semibold text-white">{formatSummaryCurrency(summaryMetrics.postRenovationValue)}</p>
-          <div className="flex flex-col items-end gap-0.5 mt-1">
-            <span className="text-emerald-400 text-sm flex items-center gap-1">
-              <TrendingUp size={14} />
+        {/* Metric cards — horizontal row, compressed */}
+        <div className="hidden sm:flex flex-nowrap gap-2">
+          <div className="flex-1 min-w-0 rounded-lg bg-white/5 border border-white/10 px-3 py-2.5 backdrop-blur-sm">
+            <p className="text-purple-300 text-xs uppercase tracking-wider font-semibold truncate">Est. renovation cost</p>
+            <p className="text-base font-bold text-white mt-1 truncate">${totalCost.toLocaleString()}</p>
+          </div>
+          <div className="flex-1 min-w-0 rounded-lg bg-white/5 border border-white/10 px-3 py-2.5 backdrop-blur-sm">
+            <p className="text-purple-300 text-xs uppercase tracking-wider font-semibold truncate flex items-center gap-1">
+              Est. future value
+              <InfoTooltip content={CALCULATION_TOOLTIPS.postRenovationValue} label="How we calculate post-renovation value" />
+            </p>
+            <p className="text-base font-bold text-white mt-1 truncate">{formatSummaryCurrency(summaryMetrics.postRenovationValue)}</p>
+          </div>
+          <div className="flex-1 min-w-0 rounded-lg bg-emerald-500/10 border border-emerald-500/20 px-3 py-2.5 backdrop-blur-sm">
+            <p className="text-emerald-300 text-xs uppercase tracking-wider font-semibold flex items-center gap-1 truncate">
+              <TrendingUp size={12} strokeWidth={2.5} /> Value increase
+            </p>
+            <p className="text-emerald-200 text-base font-bold mt-1 truncate">
               <ValueWithPop value={summaryMetrics.valueAdded} format="currency" prefix="+" className="inline" /> value
-            </span>
+            </p>
+          </div>
+          <div className="flex-1 min-w-0 rounded-lg bg-emerald-500/10 border border-emerald-500/20 px-3 py-2.5 backdrop-blur-sm">
+            <p className="text-emerald-300 text-xs uppercase tracking-wider font-semibold truncate flex items-center gap-1">
+              Monthly savings
+              <InfoTooltip content={CALCULATION_TOOLTIPS.monthlySavings} label="How we calculate monthly savings" />
+            </p>
             {summaryMetrics.monthlySavings > 0 ? (
-              <span className="text-emerald-400 text-sm">Save ${summaryMetrics.monthlySavings.toLocaleString()}/mo vs. comparable home</span>
+              <p className="text-emerald-200 text-base font-bold mt-1 truncate">
+                Save ${summaryMetrics.monthlySavings.toLocaleString()}/mo
+              </p>
             ) : (
-              <span className="text-purple-400 text-xs">Compare in Analysis</span>
+              <p className="text-purple-400 text-sm font-medium mt-1">Compare in Analysis</p>
             )}
-            <span className="text-purple-400 text-xs">({roiPercent}% ROI)</span>
+            {summaryMetrics.monthlySavings > 0 && summaryMetrics.usedEstimatedBalance && (
+              <p className="text-purple-300/90 text-xs font-medium mt-0.5 truncate">(est.; set in Analysis)</p>
+            )}
+          </div>
+          <div className="flex-1 min-w-0 rounded-lg bg-white/5 border border-white/10 px-3 py-2.5 backdrop-blur-sm">
+            <p className="text-purple-300 text-xs uppercase tracking-wider font-semibold flex items-center gap-1">
+              ROI
+              <InfoTooltip content={CALCULATION_TOOLTIPS.roi} label="How we calculate ROI" />
+            </p>
+            <p className="text-base font-bold text-white mt-1">{roiPercent}%</p>
           </div>
         </div>
       </div>
@@ -1292,32 +1328,43 @@ export function PropertyWishlist({ onProgressUpdate, initialBedrooms, initialBat
         </motion.div>
       </AnimatePresence>
 
-      {/* Mobile Total */}
-      <div className="sm:hidden bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-4">
-        <div className="flex items-center justify-between gap-4">
-          <div>
-            <p className="text-purple-300 text-xs uppercase">Est. Renovation Cost</p>
-            <p className="text-xl font-bold text-white">${totalCost.toLocaleString()}</p>
-            <p className="text-purple-300/90 text-xs uppercase mt-1">Est. future value</p>
-            <p className="text-base font-semibold text-white">{formatSummaryCurrency(summaryMetrics.postRenovationValue)}</p>
+      {/* Mobile: same metric cards in a compact grid */}
+      <div className="sm:hidden space-y-2">
+        <p className="text-purple-400/70 text-xs">Estimated costs — actual bids may vary.</p>
+        <div className="grid grid-cols-2 gap-2">
+          <div className="rounded-xl bg-white/5 border border-white/10 px-3 py-2.5">
+            <p className="text-purple-300 text-xs uppercase tracking-wider font-semibold">Est. renovation cost</p>
+            <p className="text-base font-bold text-white mt-1">${totalCost.toLocaleString()}</p>
           </div>
-          <div className="text-right">
-            <p className="text-emerald-400 text-sm flex items-center gap-1">
-              <TrendingUp size={14} />
-              <ValueWithPop value={summaryMetrics.valueAdded} format="currency" prefix="+" className="inline" /> value
+          <div className="rounded-xl bg-white/5 border border-white/10 px-3 py-2.5">
+            <p className="text-purple-300 text-xs uppercase tracking-wider font-semibold">Est. future value</p>
+            <p className="text-base font-bold text-white mt-1">{formatSummaryCurrency(summaryMetrics.postRenovationValue)}</p>
+          </div>
+          <div className="rounded-xl bg-emerald-500/10 border border-emerald-500/20 px-3 py-2.5 col-span-2">
+            <p className="text-emerald-300 text-xs uppercase tracking-wider font-semibold flex items-center gap-1">
+              <TrendingUp size={12} strokeWidth={2.5} /> Value increase
             </p>
+            <p className="text-emerald-200 text-base font-bold mt-1">
+              <ValueWithPop value={summaryMetrics.valueAdded} format="currency" prefix="+" className="inline" /> value · {roiPercent}% ROI
+            </p>
+          </div>
+          <div className="rounded-xl bg-emerald-500/10 border border-emerald-500/20 px-3 py-2.5 col-span-2">
+            <p className="text-emerald-300 text-xs uppercase tracking-wider font-semibold">Monthly savings</p>
             {summaryMetrics.monthlySavings > 0 ? (
-              <p className="text-emerald-400 text-sm">Save ${summaryMetrics.monthlySavings.toLocaleString()}/mo</p>
+              <p className="text-emerald-200 text-base font-bold mt-1">
+                Save ${summaryMetrics.monthlySavings.toLocaleString()}/mo vs. comparable
+                {summaryMetrics.usedEstimatedBalance && <span className="text-purple-300/90 text-xs font-medium"> (est.)</span>}
+              </p>
             ) : (
-              <p className="text-purple-400 text-xs">Compare in Analysis</p>
+              <p className="text-purple-400 text-sm font-medium mt-1">Compare in Analysis</p>
             )}
-            <p className="text-purple-400 text-xs">{roiPercent}% ROI</p>
           </div>
         </div>
       </div>
 
       {/* Progress Summary */}
       <div className="bg-white/5 rounded-xl p-4 border border-white/10">
+        <p className="text-purple-400/70 text-xs mb-2 hidden sm:block">Estimated costs — actual bids may vary.</p>
         <div className="flex items-center justify-between mb-2">
           <p className="text-white font-medium text-sm">Overall Progress</p>
           <p className="text-purple-300 text-sm">{completedCategories.size} of {CATEGORIES.length} categories</p>

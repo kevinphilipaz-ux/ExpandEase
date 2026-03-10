@@ -5,6 +5,8 @@ import {
   loadProjectFromStorage,
   saveProjectToStorage,
 } from '../types/project';
+import { useAuthOptional } from './AuthContext';
+import { supabase, isSupabaseConfigured } from '../lib/supabase';
 
 interface ProjectContextType {
   project: Project;
@@ -31,24 +33,87 @@ function mergeProject(prev: Project, updates: Partial<Project>): Project {
   return next;
 }
 
+async function fetchProjectFromSupabase(userId: string): Promise<Project | null> {
+  if (!supabase) return null;
+  const { data, error } = await supabase
+    .from('projects')
+    .select('data')
+    .eq('user_id', userId)
+    .maybeSingle();
+  if (error || !data?.data) return null;
+  const parsed = data.data as unknown;
+  if (parsed && typeof parsed === 'object' && parsed !== null && 'meta' in parsed && 'property' in parsed) {
+    return parsed as Project;
+  }
+  return null;
+}
+
+async function upsertProjectToSupabase(userId: string, project: Project): Promise<void> {
+  if (!supabase) return;
+  await supabase.from('projects').upsert(
+    { user_id: userId, data: project as unknown as Record<string, unknown> },
+    { onConflict: 'user_id' }
+  );
+}
+
 export function ProjectProvider({ children }: { children: React.ReactNode }) {
+  const auth = useAuthOptional();
+  const user = auth?.user ?? null;
+  const isSupabase = isSupabaseConfigured() && !!supabase;
+
   const [project, setProjectState] = useState<Project>(() => {
     const stored = loadProjectFromStorage();
     return stored ?? createEmptyProject();
   });
 
-  const updateProject = useCallback((updates: Partial<Project>) => {
-    setProjectState((prev) => {
-      const next = mergeProject(prev, updates);
-      saveProjectToStorage(next);
-      return next;
-    });
-  }, []);
+  // When user is signed in and Supabase is configured: load from Supabase or migrate localStorage.
+  useEffect(() => {
+    if (!user?.id || !isSupabase) return;
 
-  const setProject = useCallback((p: Project) => {
-    setProjectState(p);
-    saveProjectToStorage(p);
-  }, []);
+    let cancelled = false;
+    (async () => {
+      const fromServer = await fetchProjectFromSupabase(user.id);
+      if (cancelled) return;
+      if (fromServer) {
+        setProjectState(fromServer);
+        saveProjectToStorage(fromServer);
+      } else {
+        // No server project: migrate current (localStorage) project to Supabase.
+        const current = loadProjectFromStorage();
+        const toSave = current ?? createEmptyProject();
+        await upsertProjectToSupabase(user.id, toSave);
+        if (!cancelled && current) setProjectState(current);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.id, isSupabase]);
+
+  const updateProject = useCallback(
+    (updates: Partial<Project>) => {
+      setProjectState((prev) => {
+        const next = mergeProject(prev, updates);
+        saveProjectToStorage(next);
+        if (user?.id && isSupabase) {
+          upsertProjectToSupabase(user.id, next);
+        }
+        return next;
+      });
+    },
+    [user?.id, isSupabase]
+  );
+
+  const setProject = useCallback(
+    (p: Project) => {
+      setProjectState(p);
+      saveProjectToStorage(p);
+      if (user?.id && isSupabase) {
+        upsertProjectToSupabase(user.id, p);
+      }
+    },
+    [user?.id, isSupabase]
+  );
 
   return (
     <ProjectContext.Provider value={{ project, updateProject, setProject }}>

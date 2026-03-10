@@ -87,7 +87,11 @@ export interface ProjectFinancial {
   targetBudget?: number;
   /** Line item ids that are enabled (if using line-item model) */
   enabledLineItemIds?: string[];
-  /** Existing mortgage balance (for lender DTI / eligibility) — optional */
+  /** Current monthly mortgage payment (P&I only) — used to derive existing balance for accurate "savings vs. comparable" */
+  currentMonthlyPayment?: number;
+  /** Optional down payment at purchase (for context/display) */
+  downPaymentAtPurchase?: number;
+  /** Existing mortgage balance (for lender DTI / eligibility) — optional; overrides balance derived from current payment when set */
   existingMortgageBalance?: number;
 }
 

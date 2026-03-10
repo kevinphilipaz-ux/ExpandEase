@@ -2,7 +2,9 @@ import React, { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { useProjectOptional } from '../context/ProjectContext';
+import { useAuthOptional } from '../context/AuthContext';
 import { CADCheckoutModal } from '../components/CADCheckoutModal';
+import { AuthUI } from '../components/AuthUI';
 import { ValueWithPop } from '../components/ui/ValueWithPop';
 import { useMilestoneConfetti } from '../hooks/useMilestoneConfetti';
 import {
@@ -88,6 +90,17 @@ const ROOMS: RoomData[] = [
       'Workshop Area']
 
   }];
+
+/** Shown on Design Package when Supabase is configured but user is not signed in. */
+function DesignPackageAuthPrompt() {
+  const auth = useAuthOptional();
+  if (!auth?.isConfigured || auth.user) return null;
+  return (
+    <p className="text-amber-200/90 text-sm mt-2 flex items-center gap-2 flex-wrap">
+      Create an account to save your plan on any device. <AuthUI />
+    </p>
+  );
+}
 
 function buildSpecs(project: { property?: { beds?: number; baths?: number; sqft?: number }; wishlist?: { bedrooms?: number; bathrooms?: number } }) {
   const prop = project?.property;
@@ -242,6 +255,10 @@ export function DesignPackage() {
               <Sparkles size={18} /> Upgrade to 3D CAD
             </motion.button>
           </div>
+          <p className="text-purple-300/70 text-sm mt-2">
+            Contractor matching coming soon — your plan is saved and ready to share when we launch.
+          </p>
+          <DesignPackageAuthPrompt />
         </motion.header>
 
         {/* --- Key Metrics Strip --- */}

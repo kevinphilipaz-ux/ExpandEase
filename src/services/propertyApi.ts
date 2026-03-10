@@ -14,6 +14,10 @@ export interface SubjectProperty {
   baths: number;
   pool: boolean;
   yearBuilt: number;
+  /** Most recent sale price for this property (when available from API). */
+  lastSalePrice?: number;
+  /** Date of last sale, ISO string (when available from API). */
+  lastSaleDate?: string;
 }
 
 export interface CompProperty {
@@ -39,6 +43,7 @@ interface RentCastSubject {
   squareFootage?: number;
   yearBuilt?: number;
   lastSalePrice?: number;
+  lastSaleDate?: string;
 }
 
 interface RentCastComp {
@@ -62,7 +67,8 @@ function normalizeAddress(addr: string): string {
 }
 
 // --- Cache (saves RentCast calls when testing the same address) ---
-const CACHE_KEY_PREFIX = 'expand_ease_property_';
+const CACHE_VERSION = 2; // bump when response shape changes (e.g. lastSalePrice/lastSaleDate) so old cache is ignored
+const CACHE_KEY_PREFIX = `expand_ease_property_v${CACHE_VERSION}_`;
 const CACHE_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
 
 const memoryCache = new Map<string, PropertyDataResult>();
@@ -143,6 +149,8 @@ export async function fetchPropertyValue(address: string): Promise<PropertyDataR
       baths: subjectProp?.bathrooms ?? 0,
       pool: false, // RentCast AVM response doesn't include pool; could be enriched from /properties later
       yearBuilt: subjectProp?.yearBuilt ?? 0,
+      lastSalePrice: subjectProp?.lastSalePrice && subjectProp.lastSalePrice > 0 ? subjectProp.lastSalePrice : undefined,
+      lastSaleDate: subjectProp?.lastSaleDate || undefined,
     };
     const comps: CompProperty[] = (data.comparables ?? []).slice(0, 10).map((c) => ({
       address: c.formattedAddress ?? '',
@@ -226,6 +234,9 @@ export function getMockPropertyData(addressSeed: string): PropertyDataResult {
     });
   }
   comps.sort((a, b) => b.price - a.price);
+  // Mock a plausible last sale price (slightly below current value)
+  const lastSalePrice = Math.round(subjectValue * (0.75 + rand() * 0.2) / 1000) * 1000;
+  const lastSaleDate = new Date(Date.now() - (365 + rand() * 1460) * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
   return {
     subject: {
       value: subjectValue,
@@ -235,6 +246,8 @@ export function getMockPropertyData(addressSeed: string): PropertyDataResult {
       baths: subjectBaths,
       pool: subjectPool,
       yearBuilt: subjectYear,
+      lastSalePrice,
+      lastSaleDate,
     },
     comps,
   };

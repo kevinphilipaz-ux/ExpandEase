@@ -67,6 +67,7 @@ export function DreamCalculator() {
               See Your Future Equity
             </h3>
             <p className="text-purple-200 text-sm">Real-time ROI estimation</p>
+            <p className="text-purple-400/70 text-xs mt-0.5">For illustration only — not a guarantee.</p>
           </div>
           <div className="bg-green-500/20 border border-green-500/30 rounded-full px-3 py-1 flex items-center gap-1">
             <TrendingUp size={14} className="text-green-400" />

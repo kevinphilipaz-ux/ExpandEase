@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { WaitlistSection } from '../components/landing/WaitlistSection';
+import { AuthUI } from '../components/AuthUI';
 import { motion } from 'framer-motion';
 import { useOnboarding } from '../context/OnboardingContext';
 import { useProjectOptional } from '../context/ProjectContext';
@@ -625,11 +626,12 @@ export function LandingPage() {
             <span className="text-xl font-bold text-white">ExpandEase</span>
           </div>
 
-          <div className="flex gap-8 text-sm text-gray-400">
+          <div className="flex flex-wrap items-center gap-6 text-sm text-gray-400">
             <a href="#" className="hover:text-white transition-colors">About</a>
             <a href="#" className="hover:text-white transition-colors">How It Works</a>
             <Link to="/for-contractors" className="hover:text-white transition-colors">For Contractors</Link>
             <Link to="/for-lenders" className="hover:text-white transition-colors">For Lenders</Link>
+            <AuthUI />
           </div>
 
           <div className="text-xs text-gray-600">

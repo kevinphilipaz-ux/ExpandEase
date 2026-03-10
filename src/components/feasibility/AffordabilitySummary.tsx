@@ -58,6 +58,7 @@ export function AffordabilitySummary({
       <h3 className="text-lg font-semibold text-white flex items-center gap-2">
         Your Financial Reality Check
       </h3>
+      <p className="text-gray-400 text-xs">This does not constitute lending or pre-approval. Lenders will apply their own criteria.</p>
 
       <div className="grid md:grid-cols-2 gap-6">
         {/* Inputs */}

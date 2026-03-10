@@ -1,5 +1,7 @@
 import React from 'react';
 import { Home } from 'lucide-react';
+import { AuthUI } from '../AuthUI';
+
 export function LandingFooter() {
   return (
     <footer className="bg-black py-12 px-4 md:px-8 border-t border-white/10">
@@ -11,16 +13,14 @@ export function LandingFooter() {
           </span>
         </div>
 
-        <div className="flex gap-8 text-sm text-gray-400">
+        <div className="flex flex-wrap items-center gap-6 text-sm text-gray-400">
           <a href="#" className="hover:text-white transition-colors py-2 min-h-[44px] flex items-center">
             About
           </a>
           <a href="#" className="hover:text-white transition-colors py-2 min-h-[44px] flex items-center">
             Lending Partners
           </a>
-          <a href="#" className="hover:text-white transition-colors py-2 min-h-[44px] flex items-center">
-            Login
-          </a>
+          <AuthUI />
         </div>
 
         <div className="text-xs text-gray-600">

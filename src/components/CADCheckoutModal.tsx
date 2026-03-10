@@ -92,7 +92,7 @@ export function CADCheckoutModal({ onClose, isOpen }: CADCheckoutModalProps) {
                             >
                                 <div>
                                     <h2 className="text-2xl font-bold text-gray-900 mb-2">Upgrade to 3D CAD Package</h2>
-                                    <p className="text-gray-500 text-sm">Review your order details below and proceed to payment.</p>
+                                    <p className="text-gray-500 text-sm">Coming soon — payment will be available when we launch. Preview below.</p>
                                 </div>
 
                                 <div className="bg-gray-50 rounded-2xl p-5 border border-gray-100 flex items-center justify-between">
@@ -143,7 +143,7 @@ export function CADCheckoutModal({ onClose, isOpen }: CADCheckoutModalProps) {
                                 </button>
 
                                 <p className="text-center text-xs text-gray-400 flex items-center justify-center gap-1.5">
-                                    <Lock size={12} /> Secure, encrypted checkout via Stripe
+                                    <Lock size={12} /> Payment coming soon — no charge today
                                 </p>
                             </motion.div>
                         </AnimatePresence>

@@ -18,6 +18,7 @@ import { PropertyWishlist } from './components/PropertyWishlist';
 import { FinancialAnalysis } from './components/FinancialAnalysis';
 import { FeasibilityGrid } from './components/FeasibilityGrid';
 import { RecommendationSection } from './components/RecommendationSection';
+import { ChatBanner } from './components/ChatBanner';
 
 interface SectionProgress {
   property: number;
@@ -302,10 +303,13 @@ export function App() {
         {/* Help Footer */}
         <footer className="mt-12 text-center border-t border-white/10 pt-6">
           <p className="text-purple-300/60 text-sm">
-            Questions? <button className="text-purple-300 hover:text-white underline">Chat with an expert</button> or call <a href="tel:1-800-EXPAND" className="text-purple-300 hover:text-white">1-800-EXPAND</a>
+            Questions? Open the chat in the bottom right or call <a href="tel:1-800-EXPAND" className="text-purple-300 hover:text-white">1-800-EXPAND</a>
           </p>
+          <p className="text-purple-400/60 text-xs mt-2">Estimated costs and values — not a bid or guarantee. Get quotes from licensed contractors.</p>
         </footer>
       </main>
+
+      <ChatBanner />
     </div>
   );
 }
