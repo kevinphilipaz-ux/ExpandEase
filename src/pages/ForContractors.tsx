@@ -13,7 +13,7 @@ const BENEFITS = [
   {
     icon: Star,
     title: 'Not Another Lead-Gen Site',
-    desc: 'Stop racing to the bottom against five other bidders on Angi or HomeAdvisor. We do not sell shared, raw leads. Our homeowners have already paid a $500 deposit for their 3D design and secured their financing. We hand our vetted partners exclusive, fully funded projects.',
+    desc: 'Stop racing to the bottom against five other bidders on Angi or HomeAdvisor. We do not sell shared, raw leads. Our homeowners have already paid a $599 deposit for their 3D design and secured their financing. We hand our vetted partners exclusive, fully funded projects.',
   },
   {
     icon: FileText,
@@ -53,7 +53,7 @@ const OBJECTION_CATEGORIES = [
   {
     title: 'Leads & qualification',
     items: [
-      { q: 'Are these just raw leads?', a: 'No. A homeowner cannot enter our contractor pipeline until they have completed our curation process, paid a $500 deposit, generated a Golden Record SOW, and been pre-qualified for their ARV loan. You are looking at a ready-to-sign contract.' },
+      { q: 'Are these just raw leads?', a: 'No. A homeowner cannot enter our contractor pipeline until they have completed our curation process, paid a $599 deposit, generated a Golden Record SOW, and been pre-qualified for their ARV loan. You are looking at a ready-to-sign contract.' },
       { q: '"What if the homeowner doesn\'t qualify for financing?"', a: 'They don\'t reach you until they do. Our flow qualifies borrowers and locks scope before we match them with a contractor. By the time you see the project, financing is in progress and the scope is set. No wasted bids on "maybe" jobs.' },
       { q: '"How many leads do I actually get?"', a: 'Volume depends on your service area and trade. We\'re growing the homeowner side in Arizona and directing qualified renovation projects to vetted contractors in our network. Early partners get priority placement. We\'d rather send you fewer, fully-baked deals than a flood of unqualified leads.' },
       { q: '"I already have plenty of work."', a: 'Then this is about better work, not more volume. Our leads are pre-funded, fully scoped, and paid on milestones. Less chasing, less dispute risk, higher homeowner satisfaction. Many contractors use us to replace their worst clients with ones that show up ready to build.' },
@@ -146,7 +146,7 @@ export function ForContractors() {
           <div className="max-w-xl mx-auto mb-10">
             <ul className="space-y-3 text-left">
               {[
-                'Pre-funded projects — $500 deposit and financing secured before you see the job',
+                'Pre-funded projects — $599 deposit and financing secured before you see the job',
                 'Complete SOW before you bid — apply your rates and margins in a 30-minute review',
                 'Digital milestone draws — no waiting on bank inspectors',
                 'You build with confidence.',
@@ -212,7 +212,7 @@ export function ForContractors() {
                 <div>
                   <h3 className="text-lg font-bold text-white mb-2">Pre-qualified homeowners only</h3>
                   <p className="text-gray-300 text-sm md:text-base leading-relaxed mb-2">
-                    Every project has a $500 deposit and financing in motion. Scope and selections are locked in our platform before you see the file.
+                    Every project has a $599 deposit and financing in motion. Scope and selections are locked in our platform before you see the file.
                   </p>
                   <p className="text-gray-300 text-sm md:text-base leading-relaxed">
                     Result: you only see ready-to-sign work.

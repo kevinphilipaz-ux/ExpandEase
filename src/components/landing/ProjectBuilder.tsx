@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { MASTER_ITEMS_BY_ID } from '../../config/renovationDefaults';
 import {
   BedDouble,
   ChefHat,
@@ -15,9 +16,12 @@ import {
 export interface ProjectBuilderOutput {
   estimatedBudgetMin: number;
   estimatedBudgetMax: number;
+  /** @deprecated — use totalValueAdded instead for accurate equity */
   equityMultiplier: number;
   additionsCost: number;
   renovationsCost: number;
+  /** Total value added based on per-item ROI rates from MASTER_RENOVATION_ITEMS */
+  totalValueAdded: number;
 }
 interface ProjectBuilderProps {
   onUpdate: (output: ProjectBuilderOutput) => void;
@@ -100,34 +104,66 @@ export function ProjectBuilder({ onUpdate }: ProjectBuilderProps) {
     );
   };
   // --- Calculations ---
+  // Use per-item ROI rates from MASTER_RENOVATION_ITEMS for consistent equity estimates
   const stableOnUpdate = useCallback(onUpdate, []);
   useEffect(() => {
-    // Additions cost
+    const masterSuiteItem = MASTER_ITEMS_BY_ID['master-suite'];
+    const kitchenItem = MASTER_ITEMS_BY_ID['kitchen'];
+    const poolItem = MASTER_ITEMS_BY_ID['pool'];
+    const flooringItem = MASTER_ITEMS_BY_ID['flooring'];
+    const bathItem = MASTER_ITEMS_BY_ID['bath-add'];
+
+    // Additions cost and value (using ARV arbitrage ROI from master data)
     let addCost = 0;
-    if (masterSuite) addCost += 120000;
-    addCost += bedsToAdd * 40000;
-    // Full baths cost $25k, half baths cost $12.5k
-    addCost += Math.floor(bathsToAdd) * 25000 + (bathsToAdd % 1 > 0 ? 12500 : 0);
-    // Renovations cost
-    let renoCost = 0;
-    if (kitchen) renoCost += 85000;
-    if (pool) {
-      renoCost += 95000;
-      if (poolExtras.includes('kitchen')) renoCost += 15000;
-      if (poolExtras.includes('cabana')) renoCost += 25000;
+    let addValue = 0;
+    if (masterSuite) {
+      addCost += masterSuiteItem?.cost ?? 165000;
+      addValue += masterSuiteItem?.valueAdded ?? 259050;
     }
-    if (otherRooms) renoCost += 55000;
+    // Extra bedrooms: $40k each, value at addition ROI rate (157%)
+    const extraBedCost = bedsToAdd * 40000;
+    addCost += extraBedCost;
+    addValue += extraBedCost * ((bathItem?.roiPct ?? 157) / 100);
+    // Bathrooms: $25k full / $12.5k half, value at bath-add ROI rate
+    const bathCost = Math.floor(bathsToAdd) * 25000 + (bathsToAdd % 1 > 0 ? 12500 : 0);
+    addCost += bathCost;
+    addValue += bathCost * ((bathItem?.roiPct ?? 157) / 100);
+
+    // Renovations cost and value (using Cost vs. Value ROI from master data)
+    let renoCost = 0;
+    let renoValue = 0;
+    if (kitchen) {
+      renoCost += kitchenItem?.cost ?? 120000;
+      renoValue += kitchenItem?.valueAdded ?? 84000;
+    }
+    if (pool) {
+      renoCost += poolItem?.cost ?? 95000;
+      renoValue += poolItem?.valueAdded ?? 38000;
+      if (poolExtras.includes('kitchen')) { renoCost += 15000; renoValue += 15000 * ((poolItem?.roiPct ?? 40) / 100); }
+      if (poolExtras.includes('cabana')) { renoCost += 25000; renoValue += 25000 * ((poolItem?.roiPct ?? 40) / 100); }
+    }
+    if (otherRooms) {
+      renoCost += flooringItem?.cost ?? 55000;
+      renoValue += flooringItem?.valueAdded ?? 44000;
+    }
+
     const baseTotal = addCost + renoCost;
+    const baseTotalValue = addValue + renoValue;
     const selectedTier = TIERS.find((t) => t.id === tier);
     const multiplier = selectedTier?.multiplier || 1;
-    const equityMult = selectedTier?.equityMult || 1.2;
+    // Tier affects cost (finish quality), but value-added scales proportionally
     const calculatedTotal = baseTotal * multiplier;
+    // Higher tiers increase value slightly (diminishing returns on luxury finishes)
+    const tierValueBoost = multiplier <= 1 ? multiplier : 1 + (multiplier - 1) * 0.6;
+    const calculatedValue = baseTotalValue * tierValueBoost;
+
     stableOnUpdate({
       estimatedBudgetMin: Math.round(calculatedTotal * 0.85),
       estimatedBudgetMax: Math.round(calculatedTotal * 1.15),
-      equityMultiplier: equityMult,
+      equityMultiplier: calculatedTotal > 0 ? calculatedValue / calculatedTotal : 1,
       additionsCost: Math.round(addCost * multiplier),
-      renovationsCost: Math.round(renoCost * multiplier)
+      renovationsCost: Math.round(renoCost * multiplier),
+      totalValueAdded: Math.round(calculatedValue),
     });
   }, [
   masterSuite,

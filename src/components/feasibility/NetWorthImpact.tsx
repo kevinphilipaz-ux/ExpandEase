@@ -1,5 +1,27 @@
-import React from 'react';
+import React, { useMemo } from 'react';
+import { useProjectOptional } from '../../context/ProjectContext';
+import { MASTER_RENOVATION_ITEMS } from '../../config/renovationDefaults';
+import { calculateNetWorthImpact } from '../../utils/renovationMath';
+
 export function NetWorthImpact() {
+  const projectCtx = useProjectOptional();
+  const fin = projectCtx?.project?.financial;
+
+  const impact = useMemo(() => {
+    const totalCost = fin?.totalCost ?? MASTER_RENOVATION_ITEMS.reduce((s, i) => s + i.cost, 0);
+    const totalValue = fin?.totalValue ?? MASTER_RENOVATION_ITEMS.reduce((s, i) => s + i.valueAdded, 0);
+    return calculateNetWorthImpact(totalCost, totalValue, 10);
+  }, [fin?.totalCost, fin?.totalValue]);
+
+  const formatCompact = (val: number) => {
+    const abs = Math.abs(val);
+    if (abs >= 1_000_000) return `$${(abs / 1_000_000).toFixed(1)}M`;
+    if (abs >= 1000) return `$${Math.round(abs / 1000)}k`;
+    return `$${abs}`;
+  };
+  const formatFull = (val: number) =>
+    new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(val);
+
   return (
     <div className="space-y-6">
       <h3 className="text-lg font-semibold text-white">The Net Worth Impact</h3>
@@ -11,9 +33,9 @@ export function NetWorthImpact() {
             The Cost
           </div>
           <div className="text-4xl font-mono font-bold text-red-400 mb-1">
-            -$575k
+            -{formatCompact(impact.totalCostWithInterest)}
           </div>
-          <div className="text-gray-400 text-sm">What you borrow</div>
+          <div className="text-gray-400 text-sm">What you borrow + interest (10yr est.)</div>
         </div>
 
         {/* Card 2: The Gain */}
@@ -22,9 +44,9 @@ export function NetWorthImpact() {
             The Gain
           </div>
           <div className="text-4xl font-mono font-bold text-green-400 mb-1">
-            +$940k
+            +{formatCompact(impact.appreciatedValueAdded)}
           </div>
-          <div className="text-gray-400 text-sm">What you own</div>
+          <div className="text-gray-400 text-sm">Appreciated value of improvements (10yr)</div>
         </div>
       </div>
 
@@ -37,8 +59,11 @@ export function NetWorthImpact() {
           </div>
           <div className="text-3xl md:text-5xl font-mono font-bold text-white drop-shadow-[0_0_15px_rgba(16,185,129,0.5)]">
             Net Equity Created:{' '}
-            <span className="text-green-400">+$365,000</span>
+            <span className={impact.netImpact >= 0 ? 'text-green-400' : 'text-red-400'}>
+              {impact.netImpact >= 0 ? '+' : '-'}{formatFull(Math.abs(impact.netImpact))}
+            </span>
           </div>
+          <p className="text-gray-400 text-xs mt-2">10-year projection with 3.5% annual appreciation. Estimates only.</p>
         </div>
       </div>
     </div>);

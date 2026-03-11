@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { motion } from 'framer-motion';
+import { useState, useEffect, useMemo, type ReactNode } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useProjectOptional } from '../context/ProjectContext';
 import { ValueWithPop } from './ui/ValueWithPop';
 import { InfoTooltip } from './ui/InfoTooltip';
@@ -17,6 +17,7 @@ import {
   calculateBlendedPayment,
   resolveExistingBalance,
   calculateSavingsVsComparable,
+  estimateCostToMove,
 } from '../utils/renovationMath';
 import { routeLoanOptions } from '../utils/loanRouter';
 import { ItemizedBill } from './feasibility/ItemizedBill';
@@ -33,7 +34,11 @@ import {
   ToggleRight,
   SlidersHorizontal,
   Info,
-  Lightbulb
+  Lightbulb,
+  Home,
+  ArrowRight,
+  Maximize2,
+  X,
 } from 'lucide-react';
 
 interface FinancialAnalysisProps {
@@ -102,7 +107,8 @@ export function FinancialAnalysis({ onProgressUpdate }: FinancialAnalysisProps) 
   const [currentMonthlyPayment, setCurrentMonthlyPayment] = useState<number | ''>(fin?.currentMonthlyPayment ?? '');
   const [downPaymentAtPurchase, setDownPaymentAtPurchase] = useState<number | ''>(fin?.downPaymentAtPurchase ?? '');
   const [existingMortgageBalance, setExistingMortgageBalance] = useState<number | ''>(fin?.existingMortgageBalance ?? '');
-  const [paymentSlider, setPaymentSlider] = useState(0); // extra $/month user is willing to consider
+  const [paymentSlider, setPaymentSlider] = useState(fin?.paymentSlider ?? 0); // extra $/month user is willing to consider
+  const [everyItemFullViewOpen, setEveryItemFullViewOpen] = useState(false);
 
   useEffect(() => {
     onProgressUpdate?.(100);
@@ -126,10 +132,11 @@ export function FinancialAnalysis({ onProgressUpdate }: FinancialAnalysisProps) 
         enabledLineItemIds: Array.from(enabledIds),
         totalCost,
         totalValue,
+        paymentSlider,
       },
     });
   // eslint-disable-next-line react-hooks/exhaustive-deps -- projectCtx is stable; we only persist when user inputs change
-  }, [monthlyIncome, monthlyDebts, targetBudget, currentMonthlyPayment, downPaymentAtPurchase, existingMortgageBalance, enabledIds]);
+  }, [monthlyIncome, monthlyDebts, targetBudget, currentMonthlyPayment, downPaymentAtPurchase, existingMortgageBalance, enabledIds, paymentSlider]);
 
   const toggleItem = (id: string) => {
     setEnabledIds((prev) => {
@@ -206,6 +213,25 @@ export function FinancialAnalysis({ onProgressUpdate }: FinancialAnalysisProps) 
     ),
     [currentHomeValue, totals.existingBalance, totals.totalCost, userRateDecimal, totals.postRenovationValue],
   );
+
+  // Recommendation stamps: one per card when applicable (only for qualifying options)
+  const loanStamps = useMemo(() => {
+    const qualifying = loanOptions.filter((o) => o.qualifies);
+    if (qualifying.length === 0) return new Map<string, string>();
+    const byPayment = [...qualifying].sort((a, b) => a.monthlyPayment - b.monthlyPayment);
+    const lowestPayment = byPayment[0];
+    const keepRate = qualifying.filter((o) => o.keepsExistingRate);
+    const leastUpfront = keepRate.length > 0
+      ? [...keepRate].sort((a, b) => a.totalInterest10yr - b.totalInterest10yr)[0]
+      : null;
+    const arv = loanOptions.find((o) => o.type === 'arv-second-lien');
+    const bestOverall = arv?.qualifies ? arv : lowestPayment;
+    const map = new Map<string, string>();
+    if (bestOverall) map.set(bestOverall.type, 'Best Overall');
+    if (lowestPayment && !map.has(lowestPayment.type)) map.set(lowestPayment.type, 'Lowest Monthly Payment');
+    if (leastUpfront && !map.has(leastUpfront.type)) map.set(leastUpfront.type, 'Least Money Up-Front');
+    return map;
+  }, [loanOptions]);
 
   // New payment = renovation portion at second-lien rate (existing mortgage is already in debts)
   const newPayment = useMemo(
@@ -299,19 +325,15 @@ export function FinancialAnalysis({ onProgressUpdate }: FinancialAnalysisProps) 
   ];
 
   return (
-    <div className="relative overflow-hidden">
-      <div
-        className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_80%_60%_at_50%_0%,rgba(168,85,247,0.08),transparent_60%),radial-gradient(ellipse_80%_60%_at_50%_100%,rgba(56,189,248,0.05),transparent_60%)] animate-pulse-opacity"
-        aria-hidden
-        style={{ animationDuration: '8s' }}
-      />
-      <div className="relative z-10 space-y-6">
+    <div className="relative min-w-0 overflow-hidden">
+      {/* Full-page pulsing glow — strong enough to read on app’s purple background */}
+      <div className="space-y-6">
         {/* Think Big reminder */}
-        <div className="rounded-2xl border border-pink-500/30 bg-gradient-to-r from-pink-500/10 to-purple-500/10 px-5 py-4 flex items-start gap-3">
+        <div className="rounded-2xl border border-pink-500/30 bg-gradient-to-r from-pink-500/10 to-purple-500/10 px-5 py-4 flex items-start gap-3 overflow-hidden min-w-0">
           <div className="text-2xl shrink-0 mt-0.5">💡</div>
-          <div>
-            <p className="font-bold text-white text-sm tracking-wide uppercase">Think Big — Your Vision, Optimized</p>
-            <p className="text-purple-200/80 text-xs mt-1">
+          <div className="min-w-0 flex-1">
+            <p className="font-bold text-white text-sm tracking-wide uppercase break-words card-text-wrap">Think Big — Your Vision, Optimized</p>
+            <p className="text-purple-200/80 text-xs mt-1 break-words card-text-wrap">
               Toggle items on and off below to find the perfect scope. Start with your full vision — then trim by ROI or budget to dial it in.
             </p>
           </div>
@@ -328,29 +350,29 @@ export function FinancialAnalysis({ onProgressUpdate }: FinancialAnalysisProps) 
         {/* ——— THE PRIZE ——— */}
         <section className="bg-gradient-to-br from-emerald-900/40 to-green-900/30 rounded-2xl border border-emerald-500/30 p-5 md:p-6 relative overflow-hidden">
         <div className="absolute inset-0 bg-emerald-500/5" />
-        <div className="relative z-10">
-          <div className="flex items-center gap-2 mb-4">
-            <Sparkles size={20} className="text-emerald-400" />
-            <h3 className="font-bold text-emerald-200 uppercase tracking-wider text-sm">The outcome</h3>
+        <div className="relative z-10 card-contain">
+          <div className="flex items-center gap-2 mb-4 min-w-0">
+            <Sparkles size={20} className="text-emerald-400 shrink-0" />
+            <h3 className="font-bold text-emerald-200 uppercase tracking-wider text-sm break-words min-w-0">The outcome</h3>
           </div>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-5">
-            <div className="bg-white/10 rounded-xl p-4 border border-white/10">
-              <p className="text-emerald-300/80 text-xs uppercase tracking-wider">New home value</p>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-5 min-w-0">
+            <div className="bg-white/10 rounded-xl p-4 border border-white/10 overflow-hidden min-w-0">
+              <p className="text-emerald-300/80 text-xs uppercase tracking-wider break-words card-text-wrap">New home value</p>
               <p className="text-2xl font-bold text-white">{formatCurrency(totals.postRenovationValue)}</p>
             </div>
-            <div className="bg-white/10 rounded-xl p-4 border border-white/10">
-              <p className="text-emerald-300/80 text-xs uppercase tracking-wider">Total investment</p>
+            <div className="bg-white/10 rounded-xl p-4 border border-white/10 overflow-hidden min-w-0">
+              <p className="text-emerald-300/80 text-xs uppercase tracking-wider break-words card-text-wrap">Total investment</p>
               <p className="text-2xl font-bold text-white">{formatCurrency(totals.totalCost)}</p>
             </div>
-            <div className="bg-white/10 rounded-xl p-4 border border-white/10">
-              <p className="text-emerald-300/80 text-xs uppercase tracking-wider flex items-center gap-1">
+            <div className="bg-white/10 rounded-xl p-4 border border-white/10 overflow-hidden min-w-0">
+              <p className="text-emerald-300/80 text-xs uppercase tracking-wider flex items-center gap-1 break-words min-w-0 card-text-wrap">
                 Blended ROI
                 <InfoTooltip content={CALCULATION_TOOLTIPS.roi} label="How we calculate ROI" />
               </p>
               <p className="text-2xl font-bold text-emerald-400"><ValueWithPop value={totals.roiPct} format="percent" /></p>
             </div>
-            <div className="bg-white/10 rounded-xl p-4 border border-white/10">
-              <p className="text-emerald-300/80 text-xs uppercase tracking-wider flex items-center gap-1">
+            <div className="bg-white/10 rounded-xl p-4 border border-white/10 overflow-hidden min-w-0">
+              <p className="text-emerald-300/80 text-xs uppercase tracking-wider flex items-center gap-1 break-words min-w-0 card-text-wrap">
                 Monthly savings vs. comparable
                 <InfoTooltip content={CALCULATION_TOOLTIPS.monthlySavings} label="How we calculate monthly savings" />
               </p>
@@ -382,144 +404,544 @@ export function FinancialAnalysis({ onProgressUpdate }: FinancialAnalysisProps) 
         </div>
       </section>
 
-      {/* ——— LOAN PRODUCT COMPARISON ——— */}
-      {totals.totalCost > 0 && (
-        <section className="bg-white/10 backdrop-blur-md rounded-2xl border border-white/20 p-5">
-          <div className="flex items-center gap-2 mb-4">
-            <Wallet size={18} className="text-purple-300" />
-            <h3 className="font-semibold text-white">Financing options</h3>
+      {/* ——— AFFORDABILITY (INCOME, DTI, PAYMENT) ——— */}
+      <section className="bg-white/10 backdrop-blur-md rounded-2xl border border-white/20 p-5 overflow-hidden min-w-0">
+        <div className="flex items-center gap-2 mb-4 min-w-0">
+          <Wallet size={18} className="text-purple-300 shrink-0" />
+          <h3 className="font-semibold text-white break-words min-w-0">Can you afford it?</h3>
+        </div>
+        <div className="grid md:grid-cols-2 gap-6 min-w-0">
+          <div className="space-y-4 min-w-0">
+            <div className="flex justify-between items-center gap-3 min-w-0">
+              <label className="text-purple-300 text-sm min-w-0 break-words pr-2 card-text-wrap">Monthly household income</label>
+              <div className="flex items-center">
+                <span className="text-gray-500 font-mono mr-1">$</span>
+                <input
+                  type="number"
+                  value={monthlyIncome}
+                  onChange={(e) => setMonthlyIncome(Math.max(0, Number(e.target.value)))}
+                  className="w-28 px-2 py-1.5 rounded-lg bg-white/10 border border-white/20 text-white font-mono text-sm focus:outline-none focus:ring-2 focus:ring-purple-400/50"
+                />
+              </div>
+            </div>
+            <div className="flex justify-between items-center gap-3 min-w-0">
+              <label className="text-purple-300 text-sm min-w-0 break-words pr-2 card-text-wrap">Current monthly debts</label>
+              <div className="flex items-center">
+                <span className="text-gray-500 font-mono mr-1">$</span>
+                <input
+                  type="number"
+                  value={monthlyDebts}
+                  onChange={(e) => setMonthlyDebts(Math.max(0, Number(e.target.value)))}
+                  className="w-28 px-2 py-1.5 rounded-lg bg-white/10 border border-white/20 text-white font-mono text-sm focus:outline-none focus:ring-2 focus:ring-purple-400/50"
+                />
+              </div>
+            </div>
+            <div className="flex justify-between items-center gap-3 min-w-0">
+              <label className="text-purple-300 text-sm min-w-0 break-words pr-2 card-text-wrap">Current monthly mortgage payment (P&I only)</label>
+              <div className="flex items-center">
+                <span className="text-gray-500 font-mono mr-1">$</span>
+                <input
+                  type="number"
+                  value={currentMonthlyPayment}
+                  onChange={(e) => {
+                    const v = e.target.value.replace(/\D/g, '');
+                    setCurrentMonthlyPayment(v === '' ? '' : Math.max(0, parseInt(v, 10) || 0));
+                  }}
+                  placeholder="e.g. 2500"
+                  className="w-32 px-2 py-1.5 rounded-lg bg-white/10 border border-white/20 text-white font-mono text-sm focus:outline-none focus:ring-2 focus:ring-purple-400/50 placeholder-purple-400/50"
+                />
+              </div>
+            </div>
+            <p className="text-purple-300/70 text-xs -mt-2">We use this with your rate (from onboarding) to estimate your loan balance for an accurate &quot;monthly savings vs. comparable&quot; number.</p>
+            <div className="flex justify-between items-center gap-3 min-w-0">
+              <label className="text-purple-300 text-sm min-w-0 break-words pr-2 card-text-wrap">Down payment at purchase (optional)</label>
+              <div className="flex items-center">
+                <span className="text-gray-500 font-mono mr-1">$</span>
+                <input
+                  type="number"
+                  value={downPaymentAtPurchase}
+                  onChange={(e) => {
+                    const v = e.target.value.replace(/\D/g, '');
+                    setDownPaymentAtPurchase(v === '' ? '' : Math.max(0, parseInt(v, 10) || 0));
+                  }}
+                  placeholder="For context"
+                  className="w-32 px-2 py-1.5 rounded-lg bg-white/10 border border-white/20 text-white font-mono text-sm focus:outline-none focus:ring-2 focus:ring-purple-400/50 placeholder-purple-400/50"
+                />
+              </div>
+            </div>
+            <div className="flex justify-between items-center gap-3 min-w-0">
+              <label className="text-purple-300 text-sm min-w-0 break-words pr-2 card-text-wrap">Existing mortgage balance (optional override)</label>
+              <div className="flex items-center">
+                <span className="text-gray-500 font-mono mr-1">$</span>
+                <input
+                  type="number"
+                  value={existingMortgageBalance}
+                  onChange={(e) => {
+                    const v = e.target.value.replace(/\D/g, '');
+                    setExistingMortgageBalance(v === '' ? '' : Math.max(0, parseInt(v, 10) || 0));
+                  }}
+                  placeholder="Overrides balance from payment"
+                  className="w-32 px-2 py-1.5 rounded-lg bg-white/10 border border-white/20 text-white font-mono text-sm focus:outline-none focus:ring-2 focus:ring-purple-400/50 placeholder-purple-400/50"
+                />
+              </div>
+            </div>
+            <p className="text-purple-300/70 text-xs -mt-2">Leave blank to use balance derived from your current payment; set if you know the exact balance (e.g. for lender).</p>
           </div>
-          <p className="text-purple-300/70 text-xs mb-4">Side-by-side comparison of qualifying loan products based on your equity and renovation scope.</p>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-            {loanOptions.map((opt) => (
-              <div
-                key={opt.type}
-                className={`rounded-xl border p-4 ${
-                  opt.qualifies
-                    ? opt.type === 'arv-second-lien'
-                      ? 'bg-emerald-500/10 border-emerald-500/30'
-                      : 'bg-white/5 border-white/10'
-                    : 'bg-white/5 border-white/10 opacity-60'
+          <div className="space-y-3">
+            {totals.derivedBalanceFromPayment != null && (
+              <div className="flex justify-between items-center gap-3 p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/20 min-w-0">
+                <span className="text-emerald-200/90 text-sm min-w-0 break-words pr-2 card-text-wrap">Estimated balance (from your payment)</span>
+                <span className="font-mono font-medium text-emerald-300 shrink-0">{formatCurrencyFull(totals.derivedBalanceFromPayment)}</span>
+              </div>
+            )}
+            <div className="flex justify-between items-center gap-3 p-3 rounded-lg bg-white/5 border border-white/10 min-w-0">
+              <span className="text-purple-300 text-sm min-w-0 break-words pr-2 card-text-wrap">New monthly payment (est.)</span>
+              <span className="font-mono font-bold text-white shrink-0">{formatCurrencyFull(paymentWithSlider)}</span>
+            </div>
+            <div
+              className={`flex justify-between items-center gap-3 p-3 rounded-lg border min-w-0 ${
+                dtiPct < 36 ? 'bg-emerald-500/10 border-emerald-500/20' : dtiPct < 43 ? 'bg-yellow-500/10 border-yellow-500/20' : 'bg-red-500/10 border-red-500/20'
+              }`}
+            >
+              <span className="text-sm font-medium min-w-0 break-words pr-2 card-text-wrap">Debt-to-income (DTI)</span>
+              <span className="font-mono font-bold shrink-0">{dtiPct}%</span>
+            </div>
+            <div className="flex justify-between items-center gap-3 p-3 rounded-lg bg-white/5 border border-white/10 min-w-0">
+              <span className="text-purple-300 text-sm min-w-0 break-words pr-2 card-text-wrap">Remaining cashflow</span>
+              <span className={`font-mono font-bold shrink-0 ${freeCashflow >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                {formatCurrencyFull(freeCashflow)}/mo
+              </span>
+            </div>
+            <div className="flex justify-between items-center gap-3 p-3 rounded-lg border border-white/10 min-w-0">
+              <span className="text-sm font-medium min-w-0 break-words pr-2 card-text-wrap">Project feasibility</span>
+              <span
+                className={`font-bold ${
+                  feasibility === 'HIGH' ? 'text-emerald-400' : feasibility === 'MEDIUM' ? 'text-yellow-400' : 'text-red-400'
                 }`}
               >
-                <div className="flex items-center justify-between mb-2">
-                  <p className="font-medium text-white text-sm">{opt.label}</p>
-                  {opt.qualifies ? (
-                    <span className="text-emerald-400 text-xs font-medium">Qualifies</span>
-                  ) : (
-                    <span className="text-red-400 text-xs font-medium">Does not qualify</span>
-                  )}
-                </div>
-                <div className="space-y-1.5 text-xs">
-                  <div className="flex justify-between">
-                    <span className="text-purple-300/80">Est. rate</span>
-                    <span className="text-white font-mono">{(opt.estimatedRate * 100).toFixed(1)}%</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-purple-300/80">Monthly payment</span>
-                    <span className="text-white font-mono">{formatCurrencyFull(opt.monthlyPayment)}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-purple-300/80">Max borrowing</span>
-                    <span className="text-white font-mono">{formatCurrency(opt.maxBorrowingPower)}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-purple-300/80">10yr interest (est.)</span>
-                    <span className="text-white font-mono">{formatCurrency(opt.totalInterest10yr)}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-purple-300/80">Keeps your rate?</span>
-                    <span className={opt.keepsExistingRate ? 'text-emerald-400' : 'text-amber-400'}>
-                      {opt.keepsExistingRate ? 'Yes' : 'No — loses your low rate'}
-                    </span>
-                  </div>
-                </div>
-                {opt.disqualifyReason && (
-                  <p className="text-red-300/70 text-xs mt-2">{opt.disqualifyReason}</p>
-                )}
-              </div>
-            ))}
+                {feasibility}
+              </span>
+            </div>
           </div>
-          <p className="text-purple-400/70 text-xs mt-3">Rates are estimates for planning purposes. All financing is subject to credit approval by licensed lending partners.</p>
+        </div>
+      </section>
+
+      {/* ——— LOAN PRODUCT COMPARISON ——— */}
+      {totals.totalCost > 0 && (
+        <section className="bg-white/15 backdrop-blur-md rounded-2xl border border-white/30 p-5 shadow-lg min-w-0">
+          <div className="flex items-center gap-2 mb-4 min-w-0">
+            <Wallet size={18} className="text-purple-200 shrink-0" />
+            <h3 className="font-semibold text-white break-words min-w-0">Financing options</h3>
+          </div>
+          <p className="text-purple-200/90 text-sm mb-4 break-words card-text-wrap">Compare options and see what it takes for each. We recommend one; you choose what works for you.</p>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 min-w-0 pt-4">
+            {loanOptions.map((opt) => {
+              const stamp = loanStamps.get(opt.type);
+              const isHighlight = stamp != null;
+              return (
+                <div
+                  key={opt.type}
+                  className={`rounded-xl border-2 p-4 relative overflow-visible min-w-0 ${
+                    isHighlight
+                      ? 'bg-emerald-500/20 border-emerald-400/60 shadow-md shadow-emerald-500/10'
+                      : 'bg-white/15 border-white/30'
+                  }`}
+                >
+                  {stamp != null && (
+                    <div className="absolute -top-2.5 left-3 right-3 flex justify-center">
+                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold shadow-md ${
+                        stamp === 'Best Overall'
+                          ? 'bg-gradient-to-r from-amber-500 to-amber-600 text-white'
+                          : stamp === 'Lowest Monthly Payment'
+                          ? 'bg-emerald-500/90 text-white'
+                          : 'bg-purple-500/90 text-white'
+                      }`}>
+                        {stamp}
+                      </span>
+                    </div>
+                  )}
+                  <div className="mb-2 pt-1">
+                    <p className="font-semibold text-white text-sm">{opt.label}</p>
+                  </div>
+                  <div className="space-y-1.5 text-sm min-w-0">
+                    <div className="flex justify-between gap-3 min-w-0">
+                      <span className="text-purple-200/90 min-w-0 break-words pr-2 card-text-wrap">Est. rate</span>
+                      <span className="text-white font-mono font-medium shrink-0">{(opt.estimatedRate * 100).toFixed(1)}%</span>
+                    </div>
+                    <div className="flex justify-between gap-3 min-w-0">
+                      <span className="text-purple-200/90 min-w-0 break-words pr-2 card-text-wrap">Monthly payment</span>
+                      <span className="text-white font-mono font-semibold shrink-0">{formatCurrencyFull(opt.monthlyPayment)}</span>
+                    </div>
+                    <div className="flex justify-between gap-3 min-w-0">
+                      <span className="text-purple-200/90 min-w-0 break-words pr-2 card-text-wrap">Max borrowing</span>
+                      <span className="text-white font-mono font-medium shrink-0">{formatCurrency(opt.maxBorrowingPower)}</span>
+                    </div>
+                    <div className="flex justify-between gap-3 min-w-0">
+                      <span className="text-purple-200/90 min-w-0 break-words pr-2 card-text-wrap">Cash required</span>
+                      <span className="text-white font-mono font-medium shrink-0">
+                        {opt.cashRequired === 0 ? '$0' : formatCurrencyFull(opt.cashRequired)}
+                      </span>
+                    </div>
+                    <div className="flex justify-between gap-3 min-w-0">
+                      <span className="text-purple-200/90 min-w-0 break-words pr-2 card-text-wrap">Required optimization amount</span>
+                      <span className="text-white font-mono font-medium shrink-0">
+                        {opt.requiredOptimizationAmount === 0 ? '$0' : formatCurrencyFull(opt.requiredOptimizationAmount)}
+                      </span>
+                    </div>
+                    <div className="flex justify-between gap-3 min-w-0">
+                      <span className="text-purple-200/90 min-w-0 break-words pr-2 card-text-wrap">10yr interest (est.)</span>
+                      <span className="text-white font-mono font-medium shrink-0">{formatCurrency(opt.totalInterest10yr)}</span>
+                    </div>
+                    <div className="flex justify-between gap-3 min-w-0">
+                      <span className="text-purple-200/90 min-w-0 break-words pr-2 card-text-wrap">Keeps your rate?</span>
+                      <span className={`shrink-0 ${opt.keepsExistingRate ? 'text-emerald-400 font-medium' : 'text-amber-400 font-medium'}`}>
+                        {opt.keepsExistingRate ? 'Yes' : 'No — loses your low rate'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          <p className="text-purple-300/90 text-xs mt-3">Rates are estimates for planning purposes. All financing is subject to credit approval by licensed lending partners.</p>
         </section>
       )}
 
-      {/* ——— GRANULAR: EVERY ITEM + TOGGLE ——— */}
-        <section className="bg-white/10 backdrop-blur-md rounded-2xl border border-white/20 p-5">
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-2">
-            <PieChart size={18} className="text-purple-300" />
-            <h3 className="font-semibold text-white">Every item · cost, value & ROI</h3>
+      {/* ——— SELL & BUY THE SAME HOUSE? ——— */}
+      {totals.totalCost > 0 && (() => {
+        const costToMove = estimateCostToMove(currentHomeValue, totals.postRenovationValue);
+        const comparablePayment = Math.round(totals.blendedPayment + totals.monthlySavingsVsComparable);
+        const Row = ({ label, value, valueClassName = 'text-white' }: { label: string; value: ReactNode; valueClassName?: string }) => (
+          <div className="flex justify-between items-baseline gap-3 py-1.5 min-w-0">
+            <span className="text-purple-300/90 text-sm min-w-0 break-words pr-2 card-text-wrap">{label}</span>
+            <span className={`font-mono text-sm tabular-nums text-right shrink-0 ${valueClassName}`}>{value}</span>
           </div>
-          <span className="text-purple-300/70 text-xs">
+        );
+        return (
+          <section className="bg-gradient-to-br from-purple-900/30 to-pink-900/20 rounded-2xl border border-purple-500/30 p-5 md:p-6 relative overflow-hidden">
+            <div className="absolute inset-0 bg-white/5" />
+            <div className="relative z-10 card-contain">
+              <div className="flex items-center gap-2 mb-3 min-w-0">
+                <Home size={20} className="text-purple-300 shrink-0" />
+                <h3 className="font-bold text-purple-200 uppercase tracking-wider text-sm break-words min-w-0">Sell & buy the same house?</h3>
+              </div>
+              <p className="text-purple-200/90 text-sm mb-4 break-words min-w-0 card-text-wrap">
+                What if you sold your current home and bought one priced like your home <em>after</em> renovation? Here’s the comparison — as long as renovating is cheaper per sq ft than buying that same space, adding sq ft and renovating stays the better deal.
+              </p>
+
+              {/* Primary value: monthly payment savings */}
+              <div className="rounded-xl bg-emerald-500/15 border border-emerald-500/30 p-4 mb-4 overflow-hidden min-w-0">
+                <p className="text-emerald-200/90 text-xs uppercase tracking-wider font-semibold mb-3 break-words min-w-0 card-text-wrap">Monthly payment: renovate vs. buy the same house</p>
+                <div className="space-y-2">
+                  <Row label="Your payment after renovating (stay put)" value={`${formatCurrencyFull(totals.blendedPayment)}/mo`} valueClassName="text-white font-semibold" />
+                  <Row label="If you bought this same house (80% LTV @ market rate)" value={`${formatCurrencyFull(comparablePayment)}/mo`} valueClassName="text-purple-200" />
+                  <div className="flex justify-between items-baseline gap-4 pt-2 mt-2 border-t border-emerald-500/20 min-w-0">
+                    <span className="text-emerald-200 font-medium text-sm min-w-0 break-words pr-2 card-text-wrap">You save by renovating</span>
+                    <span className="font-mono font-bold text-emerald-300 tabular-nums">
+                      {totals.monthlySavingsVsComparable >= 0 ? '+' : ''}{formatCurrencyFull(totals.monthlySavingsVsComparable)}/mo
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 min-w-0">
+                <div className="rounded-xl bg-white/10 border border-white/10 p-4 overflow-hidden min-w-0">
+                  <p className="text-purple-300/80 text-xs uppercase tracking-wider font-medium mb-3 break-words card-text-wrap">Renovate (stay put)</p>
+                  <div className="space-y-0">
+                    <Row label="Total investment" value={formatCurrencyFull(totals.totalCost)} />
+                    <Row label="New home value" value={formatCurrencyFull(totals.postRenovationValue)} valueClassName="text-emerald-300" />
+                    <Row label="Keeps your current rate" value="Yes" valueClassName="text-emerald-400" />
+                  </div>
+                </div>
+                <div className="rounded-xl bg-white/10 border border-white/10 p-4 overflow-hidden min-w-0">
+                  <p className="text-purple-300/80 text-xs uppercase tracking-wider font-medium mb-3 break-words card-text-wrap">Sell, then buy at post-reno value</p>
+                  <div className="space-y-0">
+                    <Row label="Cost to move (est.)" value={formatCurrencyFull(costToMove)} valueClassName="text-amber-300" />
+                  </div>
+                  <p className="text-purple-300/70 text-xs mt-3 break-words card-text-wrap">Seller commission (~6%) + buyer closing (~2%). Moving costs not included.</p>
+                  <p className="text-purple-300/70 text-xs mt-1 break-words card-text-wrap">New mortgage at market rate on full purchase — no rate lock from your current loan.</p>
+                </div>
+              </div>
+
+              {totals.netEquity < 0 && (() => {
+                const betterOff = costToMove - Math.abs(totals.netEquity);
+                return (
+                  <div className="mt-4 p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/30 overflow-hidden min-w-0">
+                    <div className="flex items-start gap-2 min-w-0">
+                      <ArrowRight size={16} className="text-emerald-400 shrink-0 mt-0.5" />
+                      <p className="text-emerald-200 text-sm break-words card-text-wrap min-w-0">
+                        Even with a net of <span className="font-mono font-medium text-white">{formatCurrencyFull(totals.netEquity)}</span> on this scope, you’re still <span className="font-bold text-emerald-300">{formatCurrencyFull(betterOff)}</span> better off renovating than selling and buying the same house — because cost to move would be ~<span className="font-mono">{formatCurrencyFull(costToMove)}</span>.
+                      </p>
+                    </div>
+                  </div>
+                );
+              })()}
+              {totals.netEquity >= 0 && (
+                <p className="text-purple-200/80 text-sm mt-4 break-words card-text-wrap min-w-0">
+                  Your renovation adds net equity of <span className="font-mono text-white">{formatCurrencyFull(totals.netEquity)}</span>. Selling and buying an equivalent home would still cost ~<span className="font-mono text-amber-200/90">{formatCurrencyFull(costToMove)}</span> in commissions and closing — renovating avoids that and keeps your rate.
+                </p>
+              )}
+            </div>
+          </section>
+        );
+      })()}
+
+      {/* ——— GRANULAR: EVERY ITEM + TOGGLE ——— */}
+        <section className="bg-white/10 backdrop-blur-md rounded-2xl border border-white/20 p-5 overflow-hidden min-w-0">
+        {/* Header: stack on mobile so title doesn't compress */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-3 mb-4 min-w-0">
+          <div className="flex items-center gap-2 min-w-0">
+            <PieChart size={18} className="text-purple-300 shrink-0" />
+            <h3 className="font-semibold text-white text-left">Every item · cost, value & ROI</h3>
+          </div>
+          <span className="text-purple-300/70 text-xs text-left sm:text-right sm:shrink-0">
             Toggle off to remove from plan — totals update below
           </span>
         </div>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-white/10 text-left text-purple-300/80 uppercase tracking-wider">
-                <th className="pb-3 pr-2 font-medium">Include</th>
-                <th className="pb-3 pr-4 font-medium">Item</th>
-                <th className="pb-3 pr-4 font-medium text-right">Cost</th>
-                <th className="pb-3 pr-4 font-medium text-right">Value added</th>
-                <th className="pb-3 font-medium text-right">ROI</th>
-              </tr>
-            </thead>
-            <tbody>
-              {sortedByRoi.map((item) => {
-                const enabled = enabledIds.has(item.id);
-                const tier = getRoiTier(item.roiPct);
-                return (
-                  <motion.tr
-                    key={item.id}
-                    layout
-                    className={`border-b border-white/5 ${!enabled ? 'opacity-50' : ''}`}
-                  >
-                    <td className="py-3 pr-2">
-                      <motion.button
-                        type="button"
-                        onClick={() => toggleItem(item.id)}
-                        whileTap={{ scale: 0.9 }}
-                        transition={{ type: 'spring', stiffness: 400, damping: 17 }}
-                        className="flex items-center justify-center w-9 h-9 rounded-lg bg-white/10 hover:bg-white/20 transition-colors"
-                        aria-label={enabled ? 'Exclude from plan' : 'Include in plan'}
-                      >
-                        {enabled ? (
-                          <ToggleRight size={22} className="text-emerald-400" />
-                        ) : (
-                          <ToggleLeft size={22} className="text-purple-400" />
-                        )}
-                      </motion.button>
-                    </td>
-                    <td className="py-3 pr-4 font-medium text-white">{item.label}</td>
-                    <td className="py-3 pr-4 text-right text-white tabular-nums">{formatCurrency(item.cost)}</td>
-                    <td className="py-3 pr-4 text-right text-emerald-300 tabular-nums">+{formatCurrency(item.valueAdded)}</td>
-                    <td className="py-3 text-right">
-                      <span
-                        className={`inline-flex items-center gap-1 font-mono font-medium ${
-                          tier === 'high'
-                            ? 'text-emerald-400'
-                            : tier === 'medium'
-                            ? 'text-yellow-400'
-                            : 'text-red-400'
-                        }`}
-                      >
-                        {item.roiPct}%
-                        {tier === 'high' && <TrendingUp size={14} />}
-                        {tier === 'low' && <TrendingDown size={14} />}
-                      </span>
-                    </td>
-                  </motion.tr>
-                );
-              })}
-            </tbody>
-          </table>
+
+        {/* Desktop: full table + expand button */}
+        <div className="hidden md:block relative">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm min-w-[500px]">
+              <thead>
+                <tr className="border-b border-white/10 text-left text-purple-300/80 uppercase tracking-wider">
+                  <th className="pb-3 pr-2 font-medium">Include</th>
+                  <th className="pb-3 pr-4 font-medium">Item</th>
+                  <th className="pb-3 pr-4 font-medium text-right">Cost</th>
+                  <th className="pb-3 pr-4 font-medium text-right">Value added</th>
+                  <th className="pb-3 font-medium text-right">ROI</th>
+                </tr>
+              </thead>
+              <tbody>
+                {sortedByRoi.map((item) => {
+                  const enabled = enabledIds.has(item.id);
+                  const tier = getRoiTier(item.roiPct);
+                  return (
+                    <motion.tr
+                      key={item.id}
+                      layout
+                      className={`border-b border-white/5 ${!enabled ? 'opacity-50' : ''}`}
+                    >
+                      <td className="py-3 pr-2">
+                        <motion.button
+                          type="button"
+                          onClick={() => toggleItem(item.id)}
+                          whileTap={{ scale: 0.9 }}
+                          transition={{ type: 'spring', stiffness: 400, damping: 17 }}
+                          className="flex items-center justify-center w-9 h-9 rounded-lg bg-white/10 hover:bg-white/20 transition-colors"
+                          aria-label={enabled ? 'Exclude from plan' : 'Include in plan'}
+                        >
+                          {enabled ? (
+                            <ToggleRight size={22} className="text-emerald-400" />
+                          ) : (
+                            <ToggleLeft size={22} className="text-purple-400" />
+                          )}
+                        </motion.button>
+                      </td>
+                      <td className="py-3 pr-4 font-medium text-white">{item.label}</td>
+                      <td className="py-3 pr-4 text-right text-white tabular-nums">{formatCurrency(item.cost)}</td>
+                      <td className="py-3 pr-4 text-right text-emerald-300 tabular-nums">+{formatCurrency(item.valueAdded)}</td>
+                      <td className="py-3 text-right">
+                        <span
+                          className={`inline-flex items-center gap-1 font-mono font-medium ${
+                            tier === 'high'
+                              ? 'text-emerald-400'
+                              : tier === 'medium'
+                              ? 'text-yellow-400'
+                              : 'text-red-400'
+                          }`}
+                        >
+                          {item.roiPct}%
+                          {tier === 'high' && <TrendingUp size={14} />}
+                          {tier === 'low' && <TrendingDown size={14} />}
+                        </span>
+                      </td>
+                    </motion.tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+          <button
+            type="button"
+            onClick={() => setEveryItemFullViewOpen(true)}
+            className="absolute top-0 right-0 rounded-lg border border-white/10 bg-gray-900/80 p-1.5 text-purple-300 hover:bg-white/10 transition-colors"
+            aria-label="Expand table"
+            title="Full table view"
+          >
+            <Maximize2 size={16} />
+          </button>
         </div>
+
+        {/* Mobile: card list + Full table button */}
+        <div className="md:hidden space-y-3">
+          <button
+            type="button"
+            onClick={() => setEveryItemFullViewOpen(true)}
+            className="w-full flex items-center justify-center gap-2 rounded-lg border border-purple-500/30 bg-purple-500/10 py-2.5 text-sm font-medium text-purple-200 hover:bg-purple-500/20 transition-colors"
+            aria-label="View full table"
+          >
+            <Maximize2 size={16} />
+            Full table view
+          </button>
+          <div className="space-y-2">
+            {sortedByRoi.map((item) => {
+              const enabled = enabledIds.has(item.id);
+              const tier = getRoiTier(item.roiPct);
+              return (
+                <motion.div
+                  key={item.id}
+                  layout
+                  className={`rounded-xl border border-white/10 bg-white/5 p-3 flex flex-col gap-3 ${!enabled ? 'opacity-60' : ''}`}
+                >
+                  <div className="flex items-start gap-3">
+                    <motion.button
+                      type="button"
+                      onClick={() => toggleItem(item.id)}
+                      whileTap={{ scale: 0.9 }}
+                      transition={{ type: 'spring', stiffness: 400, damping: 17 }}
+                      className="shrink-0 flex items-center justify-center w-10 h-10 rounded-lg bg-white/10 hover:bg-white/20 transition-colors"
+                      aria-label={enabled ? 'Exclude from plan' : 'Include in plan'}
+                    >
+                      {enabled ? (
+                        <ToggleRight size={22} className="text-emerald-400" />
+                      ) : (
+                        <ToggleLeft size={22} className="text-purple-400" />
+                      )}
+                    </motion.button>
+                    <div className="min-w-0 flex-1">
+                      <p className="font-medium text-white text-sm leading-tight">{item.label}</p>
+                      <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1 mt-1.5 text-xs">
+                        <span className="text-white tabular-nums">{formatCurrency(item.cost)}</span>
+                        <span className="text-emerald-300 tabular-nums">+{formatCurrency(item.valueAdded)}</span>
+                        <span
+                          className={`font-mono font-medium ${
+                            tier === 'high' ? 'text-emerald-400' : tier === 'medium' ? 'text-yellow-400' : 'text-red-400'
+                          }`}
+                        >
+                          {item.roiPct}%
+                          {tier === 'high' && <TrendingUp size={12} className="inline" />}
+                          {tier === 'low' && <TrendingDown size={12} className="inline" />}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </motion.div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Full-table modal (shared content) */}
+        <AnimatePresence>
+          {everyItemFullViewOpen && (
+            <div className="fixed inset-0 z-50 flex flex-col md:items-center md:justify-center p-4">
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="absolute inset-0 bg-black/70 backdrop-blur-sm"
+                onClick={() => setEveryItemFullViewOpen(false)}
+                aria-hidden
+              />
+              <motion.div
+                initial={{ opacity: 0, scale: 0.96 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.96 }}
+                transition={{ duration: 0.2 }}
+                className="relative w-full max-w-2xl max-h-[90vh] flex flex-col rounded-2xl border border-white/10 bg-gray-900 shadow-2xl overflow-hidden"
+              >
+                <div className="flex items-center justify-between shrink-0 px-4 py-3 border-b border-white/10 bg-gray-900/95">
+                  <h3 className="text-lg font-semibold text-white">Every item · cost, value & ROI</h3>
+                  <button
+                    type="button"
+                    onClick={() => setEveryItemFullViewOpen(false)}
+                    className="rounded-lg p-2 text-purple-300 hover:bg-white/10 transition-colors"
+                    aria-label="Close"
+                  >
+                    <X size={20} />
+                  </button>
+                </div>
+                <div className="flex-1 overflow-auto p-4">
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm min-w-[480px]">
+                      <thead>
+                        <tr className="border-b border-white/10 text-left text-purple-300/80 uppercase tracking-wider text-xs">
+                          <th className="pb-3 pr-2 font-medium">Include</th>
+                          <th className="pb-3 pr-4 font-medium">Item</th>
+                          <th className="pb-3 pr-4 font-medium text-right">Cost</th>
+                          <th className="pb-3 pr-4 font-medium text-right">Value added</th>
+                          <th className="pb-3 font-medium text-right">ROI</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {sortedByRoi.map((item) => {
+                          const enabled = enabledIds.has(item.id);
+                          const tier = getRoiTier(item.roiPct);
+                          return (
+                            <motion.tr
+                              key={item.id}
+                              layout
+                              className={`border-b border-white/5 ${!enabled ? 'opacity-50' : ''}`}
+                            >
+                              <td className="py-3 pr-2">
+                                <motion.button
+                                  type="button"
+                                  onClick={() => toggleItem(item.id)}
+                                  whileTap={{ scale: 0.9 }}
+                                  transition={{ type: 'spring', stiffness: 400, damping: 17 }}
+                                  className="flex items-center justify-center w-9 h-9 rounded-lg bg-white/10 hover:bg-white/20 transition-colors"
+                                  aria-label={enabled ? 'Exclude from plan' : 'Include in plan'}
+                                >
+                                  {enabled ? (
+                                    <ToggleRight size={22} className="text-emerald-400" />
+                                  ) : (
+                                    <ToggleLeft size={22} className="text-purple-400" />
+                                  )}
+                                </motion.button>
+                              </td>
+                              <td className="py-3 pr-4 font-medium text-white">{item.label}</td>
+                              <td className="py-3 pr-4 text-right text-white tabular-nums">{formatCurrency(item.cost)}</td>
+                              <td className="py-3 pr-4 text-right text-emerald-300 tabular-nums">+{formatCurrency(item.valueAdded)}</td>
+                              <td className="py-3 text-right">
+                                <span
+                                  className={`inline-flex items-center gap-1 font-mono font-medium ${
+                                    tier === 'high' ? 'text-emerald-400' : tier === 'medium' ? 'text-yellow-400' : 'text-red-400'
+                                  }`}
+                                >
+                                  {item.roiPct}%
+                                  {tier === 'high' && <TrendingUp size={14} />}
+                                  {tier === 'low' && <TrendingDown size={14} />}
+                                </span>
+                              </td>
+                            </motion.tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </motion.div>
+            </div>
+          )}
+        </AnimatePresence>
+
         <div className="mt-4 pt-4 border-t border-white/10 space-y-4">
           <div className="flex flex-wrap gap-6">
             <span className="text-purple-300">Total cost <span className="text-white font-bold">{formatCurrency(totals.totalCost)}</span></span>
             <span className="text-purple-300">Total value added <span className="text-emerald-400 font-bold">+{formatCurrency(totals.totalValue)}</span></span>
+            <span className="text-purple-300">
+              Net <span className={`font-bold font-mono ${totals.netEquity >= 0 ? 'text-emerald-400' : 'text-amber-400'}`}>{totals.netEquity >= 0 ? '+' : ''}{formatCurrency(totals.netEquity)}</span>
+              {totals.netEquity < 0 && (() => {
+                const costToMove = estimateCostToMove(currentHomeValue, totals.postRenovationValue);
+                const betterOff = costToMove - Math.abs(totals.netEquity);
+                return (
+                  <span className="ml-2 text-emerald-300/90 text-sm font-medium">
+                    · Cost to move (est.): {formatCurrencyFull(costToMove)} — you’re <span className="text-emerald-300 font-bold">{formatCurrencyFull(betterOff)}</span> better off renovating
+                  </span>
+                );
+              })()}
+            </span>
           </div>
           <div className="rounded-xl bg-white/5 border border-white/10 p-4 space-y-2">
             <p className="text-purple-300/80 text-xs uppercase tracking-wider font-medium">Vision vs. optimized</p>
@@ -551,6 +973,86 @@ export function FinancialAnalysis({ onProgressUpdate }: FinancialAnalysisProps) 
             )}
           </div>
           <p className="text-purple-400/70 text-xs">Estimates only — not a quote. Get quotes from licensed contractors.</p>
+        </div>
+      </section>
+
+      {/* ——— OPTIMIZE: SUGGESTIONS + TRIM TO BUDGET + LIFESTYLE SLIDER ——— */}
+        <section className="bg-white/10 backdrop-blur-md rounded-2xl border border-white/20 p-5 space-y-6">
+        <div className="flex items-center gap-2">
+          <SlidersHorizontal size={18} className="text-purple-300" />
+          <h3 className="font-semibold text-white">Optimize your plan</h3>
+        </div>
+
+        {/* Smart suggestions (was "Room for Optimization" — merged here) */}
+        {roomForOptimizationSuggestions.length > 0 && (
+          <div className="space-y-3">
+            <div className="flex items-center gap-2">
+              <Lightbulb size={16} className="text-purple-400" />
+              <p className="text-purple-200/90 text-sm font-medium">Quick wins — apply to update your plan</p>
+            </div>
+            <ul className="space-y-2">
+              {roomForOptimizationSuggestions.map((s) => (
+                <li key={s.id}>
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 p-3 rounded-xl bg-white/5 border border-white/10">
+                    <div>
+                      <p className="font-medium text-white text-sm">{s.type === 'remove' ? 'Remove' : 'Add'}: {s.label}</p>
+                      <p className="text-purple-300/80 text-xs mt-0.5">{s.message}</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => toggleItem(s.id)}
+                      className="shrink-0 px-4 py-2 rounded-lg bg-purple-500/30 text-purple-200 text-sm font-medium hover:bg-purple-500/40 transition-colors"
+                    >
+                      {s.type === 'remove' ? 'Remove from plan' : 'Add to plan'}
+                    </button>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        {trimToBudgetSuggestions.length > 0 && (
+          <div className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/20">
+            <p className="text-amber-200 font-medium text-sm mb-2">To hit your target budget, consider turning off:</p>
+            <ul className="flex flex-wrap gap-2">
+              {trimToBudgetSuggestions.map((i) => (
+                <li key={i.id}>
+                  <button
+                    type="button"
+                    onClick={() => toggleItem(i.id)}
+                    className="px-3 py-1.5 rounded-lg bg-amber-500/20 text-amber-200 text-sm hover:bg-amber-500/30 transition-colors"
+                  >
+                    {i.label} ({formatCurrency(i.cost)})
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        <div>
+          <label className="block text-purple-300 text-sm mb-2">
+            What if I increased my mortgage payment? (lifestyle tradeoff)
+          </label>
+          <div className="flex flex-wrap items-center gap-4">
+            <input
+              type="range"
+              min={0}
+              max={1500}
+              step={100}
+              value={paymentSlider}
+              onChange={(e) => setPaymentSlider(Number(e.target.value))}
+              className="flex-1 min-w-[120px] accent-purple-500"
+            />
+            <span className="font-mono font-bold text-white whitespace-nowrap">
+              +{formatCurrencyFull(paymentSlider)}/mo
+            </span>
+          </div>
+          <p className="text-purple-300/70 text-xs mt-2">
+            A higher payment means more borrowing power: +{formatCurrencyFull(paymentSlider)}/mo roughly supports ~{formatCurrency(Math.round(paymentSlider * 12 * 15))} more in project scope (approx. 30-yr).
+            Your combined payment would be <span className="text-white font-medium">{formatCurrencyFull(paymentWithSlider)}</span>/mo; DTI {dtiPct}%.
+          </p>
         </div>
       </section>
 
@@ -604,8 +1106,8 @@ export function FinancialAnalysis({ onProgressUpdate }: FinancialAnalysisProps) 
               >
                 <p className="font-medium">
                   {gapToTarget > 0
-                    ? `You’re ${formatCurrency(gapToTarget)} over target. Trim low-ROI items below or increase budget.`
-                    : `You’re ${formatCurrency(-gapToTarget)} under target. You have room to add scope or save.`}
+                    ? `You're ${formatCurrency(gapToTarget)} over target. Trim low-ROI items below or increase budget.`
+                    : `You're ${formatCurrency(-gapToTarget)} under target. You have room to add scope or save.`}
                 </p>
               </div>
             )}
@@ -616,286 +1118,11 @@ export function FinancialAnalysis({ onProgressUpdate }: FinancialAnalysisProps) 
         </div>
       </section>
 
-      {/* ——— AFFORDABILITY (INCOME, DTI, PAYMENT) ——— */}
-      <section className="bg-white/10 backdrop-blur-md rounded-2xl border border-white/20 p-5">
-        <div className="flex items-center gap-2 mb-4">
-          <Wallet size={18} className="text-purple-300" />
-          <h3 className="font-semibold text-white">Affordability · based on your income</h3>
-        </div>
-        <div className="grid md:grid-cols-2 gap-6">
-          <div className="space-y-4">
-            <div className="flex justify-between items-center gap-4">
-              <label className="text-purple-300 text-sm">Monthly household income</label>
-              <div className="flex items-center">
-                <span className="text-gray-500 font-mono mr-1">$</span>
-                <input
-                  type="number"
-                  value={monthlyIncome}
-                  onChange={(e) => setMonthlyIncome(Math.max(0, Number(e.target.value)))}
-                  className="w-28 px-2 py-1.5 rounded-lg bg-white/10 border border-white/20 text-white font-mono text-sm focus:outline-none focus:ring-2 focus:ring-purple-400/50"
-                />
-              </div>
-            </div>
-            <div className="flex justify-between items-center gap-4">
-              <label className="text-purple-300 text-sm">Current monthly debts</label>
-              <div className="flex items-center">
-                <span className="text-gray-500 font-mono mr-1">$</span>
-                <input
-                  type="number"
-                  value={monthlyDebts}
-                  onChange={(e) => setMonthlyDebts(Math.max(0, Number(e.target.value)))}
-                  className="w-28 px-2 py-1.5 rounded-lg bg-white/10 border border-white/20 text-white font-mono text-sm focus:outline-none focus:ring-2 focus:ring-purple-400/50"
-                />
-              </div>
-            </div>
-            <div className="flex justify-between items-center gap-4">
-              <label className="text-purple-300 text-sm">Current monthly mortgage payment (P&I only)</label>
-              <div className="flex items-center">
-                <span className="text-gray-500 font-mono mr-1">$</span>
-                <input
-                  type="number"
-                  value={currentMonthlyPayment}
-                  onChange={(e) => {
-                    const v = e.target.value.replace(/\D/g, '');
-                    setCurrentMonthlyPayment(v === '' ? '' : Math.max(0, parseInt(v, 10) || 0));
-                  }}
-                  placeholder="e.g. 2500"
-                  className="w-32 px-2 py-1.5 rounded-lg bg-white/10 border border-white/20 text-white font-mono text-sm focus:outline-none focus:ring-2 focus:ring-purple-400/50 placeholder-purple-400/50"
-                />
-              </div>
-            </div>
-            <p className="text-purple-300/70 text-xs -mt-2">We use this with your rate (from onboarding) to estimate your loan balance for an accurate &quot;monthly savings vs. comparable&quot; number.</p>
-            <div className="flex justify-between items-center gap-4">
-              <label className="text-purple-300 text-sm">Down payment at purchase (optional)</label>
-              <div className="flex items-center">
-                <span className="text-gray-500 font-mono mr-1">$</span>
-                <input
-                  type="number"
-                  value={downPaymentAtPurchase}
-                  onChange={(e) => {
-                    const v = e.target.value.replace(/\D/g, '');
-                    setDownPaymentAtPurchase(v === '' ? '' : Math.max(0, parseInt(v, 10) || 0));
-                  }}
-                  placeholder="For context"
-                  className="w-32 px-2 py-1.5 rounded-lg bg-white/10 border border-white/20 text-white font-mono text-sm focus:outline-none focus:ring-2 focus:ring-purple-400/50 placeholder-purple-400/50"
-                />
-              </div>
-            </div>
-            <div className="flex justify-between items-center gap-4">
-              <label className="text-purple-300 text-sm">Existing mortgage balance (optional override)</label>
-              <div className="flex items-center">
-                <span className="text-gray-500 font-mono mr-1">$</span>
-                <input
-                  type="number"
-                  value={existingMortgageBalance}
-                  onChange={(e) => {
-                    const v = e.target.value.replace(/\D/g, '');
-                    setExistingMortgageBalance(v === '' ? '' : Math.max(0, parseInt(v, 10) || 0));
-                  }}
-                  placeholder="Overrides balance from payment"
-                  className="w-32 px-2 py-1.5 rounded-lg bg-white/10 border border-white/20 text-white font-mono text-sm focus:outline-none focus:ring-2 focus:ring-purple-400/50 placeholder-purple-400/50"
-                />
-              </div>
-            </div>
-            <p className="text-purple-300/70 text-xs -mt-2">Leave blank to use balance derived from your current payment; set if you know the exact balance (e.g. for lender).</p>
-          </div>
-          <div className="space-y-3">
-            {totals.derivedBalanceFromPayment != null && (
-              <div className="flex justify-between items-center p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
-                <span className="text-emerald-200/90 text-sm">Estimated balance (from your payment)</span>
-                <span className="font-mono font-medium text-emerald-300">{formatCurrencyFull(totals.derivedBalanceFromPayment)}</span>
-              </div>
-            )}
-            <div className="flex justify-between items-center p-3 rounded-lg bg-white/5 border border-white/10">
-              <span className="text-purple-300 text-sm">New monthly payment (est.)</span>
-              <span className="font-mono font-bold text-white">{formatCurrencyFull(paymentWithSlider)}</span>
-            </div>
-            <div
-              className={`flex justify-between items-center p-3 rounded-lg border ${
-                dtiPct < 36 ? 'bg-emerald-500/10 border-emerald-500/20' : dtiPct < 43 ? 'bg-yellow-500/10 border-yellow-500/20' : 'bg-red-500/10 border-red-500/20'
-              }`}
-            >
-              <span className="text-sm font-medium">Debt-to-income (DTI)</span>
-              <span className="font-mono font-bold">{dtiPct}%</span>
-            </div>
-            <div className="flex justify-between items-center p-3 rounded-lg bg-white/5 border border-white/10">
-              <span className="text-purple-300 text-sm">Remaining cashflow</span>
-              <span className={`font-mono font-bold ${freeCashflow >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                {formatCurrencyFull(freeCashflow)}/mo
-              </span>
-            </div>
-            <div className="flex justify-between items-center p-3 rounded-lg border border-white/10">
-              <span className="text-sm font-medium">Project feasibility</span>
-              <span
-                className={`font-bold ${
-                  feasibility === 'HIGH' ? 'text-emerald-400' : feasibility === 'MEDIUM' ? 'text-yellow-400' : 'text-red-400'
-                }`}
-              >
-                {feasibility}
-              </span>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* ——— ROI SIGNALS + OPTIMIZE ——— */}
-      <section className="grid md:grid-cols-2 gap-4">
-        <div className="bg-emerald-500/10 rounded-xl border border-emerald-500/20 p-5">
-          <div className="flex items-center gap-2 mb-3">
-            <CheckCircle2 size={18} className="text-emerald-400" />
-            <h3 className="font-semibold text-emerald-300">Good ROI · keep or add</h3>
-          </div>
-          <ul className="space-y-2">
-            {highRoiItems.map((i) => (
-              <li key={i.id} className="flex justify-between items-center text-sm">
-                <span className="text-white">{i.label}</span>
-                <span className="text-emerald-400 font-mono">{i.roiPct}%</span>
-              </li>
-            ))}
-          </ul>
-        </div>
-        <div className="bg-amber-500/10 rounded-xl border border-amber-500/20 p-5">
-          <div className="flex items-center gap-2 mb-3">
-            <AlertCircle size={18} className="text-amber-400" />
-            <h3 className="font-semibold text-amber-300">Lower ROI · trim to save</h3>
-          </div>
-          <ul className="space-y-2">
-            {lowRoiItems.map((i) => (
-              <li key={i.id} className="flex justify-between items-center text-sm">
-                <span className="text-white">{i.label}</span>
-                <span className="text-amber-400 font-mono">{i.roiPct}%</span>
-              </li>
-            ))}
-          </ul>
-        </div>
-      </section>
-
-      {/* ——— ROOM FOR OPTIMIZATION ——— */}
-      {roomForOptimizationSuggestions.length > 0 && (
-        <section className="bg-purple-500/10 rounded-2xl border border-purple-500/20 p-5">
-          <div className="flex items-center gap-2 mb-4">
-            <Lightbulb size={18} className="text-purple-300" />
-            <h3 className="font-semibold text-white">Room for Optimization</h3>
-          </div>
-          <p className="text-purple-200/90 text-sm mb-4">
-            Apply a suggestion below to update your plan. When all are applied, this card clears.
-          </p>
-          <ul className="space-y-3">
-            {roomForOptimizationSuggestions.map((s) => (
-              <li key={s.id}>
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 p-3 rounded-xl bg-white/5 border border-white/10">
-                  <div>
-                    <p className="font-medium text-white text-sm">{s.type === 'remove' ? 'Remove' : 'Add'}: {s.label}</p>
-                    <p className="text-purple-300/80 text-xs mt-0.5">{s.message}</p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => toggleItem(s.id)}
-                    className="shrink-0 px-4 py-2 rounded-lg bg-purple-500/30 text-purple-200 text-sm font-medium hover:bg-purple-500/40 transition-colors"
-                  >
-                    {s.type === 'remove' ? 'Remove from plan' : 'Add to plan'}
-                  </button>
-                </div>
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
-
-      {/* ——— OPTIMIZE: TRIM TO BUDGET + LIFESTYLE SLIDER ——— */}
-        <section className="bg-white/10 backdrop-blur-md rounded-2xl border border-white/20 p-5 space-y-6">
-        <div className="flex items-center gap-2">
-          <SlidersHorizontal size={18} className="text-purple-300" />
-          <h3 className="font-semibold text-white">Optimize for cost & lifestyle</h3>
-        </div>
-
-        {trimToBudgetSuggestions.length > 0 && (
-          <div className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/20">
-            <p className="text-amber-200 font-medium text-sm mb-2">To hit your target budget, consider turning off:</p>
-            <ul className="flex flex-wrap gap-2">
-              {trimToBudgetSuggestions.map((i) => (
-                <li key={i.id}>
-                  <button
-                    type="button"
-                    onClick={() => toggleItem(i.id)}
-                    className="px-3 py-1.5 rounded-lg bg-amber-500/20 text-amber-200 text-sm hover:bg-amber-500/30 transition-colors"
-                  >
-                    {i.label} ({formatCurrency(i.cost)})
-                  </button>
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
-
-        <div>
-          <label className="block text-purple-300 text-sm mb-2">
-            What if I increased my mortgage payment? (lifestyle tradeoff)
-          </label>
-          <div className="flex flex-wrap items-center gap-4">
-            <input
-              type="range"
-              min={0}
-              max={1500}
-              step={100}
-              value={paymentSlider}
-              onChange={(e) => setPaymentSlider(Number(e.target.value))}
-              className="flex-1 min-w-[120px] accent-purple-500"
-            />
-            <span className="font-mono font-bold text-white whitespace-nowrap">
-              +{formatCurrencyFull(paymentSlider)}/mo
-            </span>
-          </div>
-          <p className="text-purple-300/70 text-xs mt-2">
-            A higher payment means more borrowing power: +{formatCurrencyFull(paymentSlider)}/mo roughly supports ~{formatCurrency(Math.round(paymentSlider * 12 * 15))} more in project scope (approx. 30-yr).
-            Your combined payment would be <span className="text-white font-medium">{formatCurrencyFull(paymentWithSlider)}</span>/mo; DTI {dtiPct}%.
-          </p>
-        </div>
-      </section>
-
       {/* ——— ITEMIZED BILL ——— */}
         <section className="bg-white/5 backdrop-blur-md rounded-2xl border border-white/10 p-5">
           <ItemizedBill />
         </section>
 
-        {/* ——— BOTTOM LINE ——— */}
-        <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-2xl p-6">
-          <p className="text-emerald-300 font-semibold uppercase tracking-wider text-sm mb-4">Bottom line</p>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
-            <div>
-              <p className="text-emerald-300/80 text-xs uppercase tracking-wider">New home value</p>
-              <p className="text-lg font-bold text-white">{formatCurrency(totals.postRenovationValue)}</p>
-            </div>
-            <div>
-              <p className="text-emerald-300/80 text-xs uppercase tracking-wider">Total investment</p>
-              <p className="text-lg font-bold text-white">{formatCurrency(totals.totalCost)}</p>
-            </div>
-            <div>
-              <p className="text-emerald-300/80 text-xs uppercase tracking-wider flex items-center gap-1">
-                Blended ROI
-                <InfoTooltip content={CALCULATION_TOOLTIPS.roi} label="How we calculate ROI" />
-              </p>
-              <p className="text-lg font-bold text-emerald-400">{totals.roiPct}%</p>
-            </div>
-            <div>
-              <p className="text-emerald-300/80 text-xs uppercase tracking-wider flex items-center gap-1">
-                Monthly savings vs. comparable
-                <InfoTooltip content={CALCULATION_TOOLTIPS.monthlySavings} label="How we calculate monthly savings" />
-              </p>
-              <p className="text-lg font-bold text-emerald-400">
-                {totals.monthlySavingsVsComparable >= 0 ? '+' : ''}{formatCurrencyFull(totals.monthlySavingsVsComparable)}/mo
-              </p>
-            </div>
-          </div>
-          <p className="text-emerald-200/90 text-sm">
-            Toggle items above to refine your plan. Use the Room for Optimization suggestions when they appear, then check affordability and the payment slider to see how to make it work.
-            {totals.netEquity !== 0 && (
-              <span className="block mt-2 text-emerald-300/70">
-                Net equity impact from this scope: <span className={totals.netEquity >= 0 ? 'text-emerald-400 font-medium' : 'text-amber-300/90'}>{formatCurrency(totals.netEquity)}</span>.
-              </span>
-            )}
-          </p>
-        </div>
       </div>
     </div>
   );

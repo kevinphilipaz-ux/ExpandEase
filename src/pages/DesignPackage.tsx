@@ -646,7 +646,7 @@ export function DesignPackage() {
         >
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             {[
-              { icon: CheckCircle2, label: 'Fixed-Price Scope', sub: 'Locked before work starts' },
+              { icon: CheckCircle2, label: 'Fixed-Price SOW*', sub: 'Locked before work starts' },
               { icon: Clock, label: '6-Month Timeline', sub: 'From permit to move-in' },
               { icon: TrendingUp, label: 'Borrow on Completed Value', sub: 'Finance the after value' },
               { icon: Shield, label: 'Clear SOW', sub: 'No hidden costs' }

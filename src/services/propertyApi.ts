@@ -140,7 +140,31 @@ export async function fetchPropertyValue(address: string): Promise<PropertyDataR
     const data: RentCastValueResponse = await res.json();
     const subjectProp = data.subjectProperty;
     const value = typeof data.price === 'number' && data.price > 0 ? data.price : (subjectProp?.lastSalePrice ?? 0);
-    const equity = Math.round(value * 0.45 / 1000) * 1000; // approximate; API doesn't provide loan balance
+
+    // Estimate equity more accurately using sale history when available
+    let equity: number;
+    if (subjectProp?.lastSalePrice && subjectProp.lastSalePrice > 0 && subjectProp?.lastSaleDate) {
+      const estimatedOriginalLoan = subjectProp.lastSalePrice * 0.80; // assume 20% down payment
+      const yearsSincePurchase = (Date.now() - new Date(subjectProp.lastSaleDate).getTime()) / (365.25 * 24 * 60 * 60 * 1000);
+      // Pre-2022 buyers likely locked ~3%; post-2022 buyers ~6.5%
+      const assumedRate = yearsSincePurchase > 3 ? 0.03 : 0.065;
+      // Amortization: remaining balance = L * [(1+r)^n - (1+r)^p] / [(1+r)^n - 1]
+      const r = assumedRate / 12;
+      const n = 30 * 12;
+      const p = Math.min(yearsSincePurchase * 12, n);
+      let remainingBalance: number;
+      if (r === 0) {
+        remainingBalance = estimatedOriginalLoan * (1 - p / n);
+      } else {
+        const factor = Math.pow(1 + r, n);
+        const paidFactor = Math.pow(1 + r, p);
+        remainingBalance = estimatedOriginalLoan * (factor - paidFactor) / (factor - 1);
+      }
+      equity = Math.round((value - remainingBalance) / 1000) * 1000;
+    } else {
+      equity = Math.round(value * 0.45 / 1000) * 1000; // fallback: approximate 45%
+    }
+
     const subject: SubjectProperty = {
       value,
       equity,
@@ -203,8 +227,6 @@ export function getMockPropertyData(addressSeed: string): PropertyDataResult {
   const subjectSqft = Math.round((1800 + rand() * 3200) / 100) * 100;
   const pricePerSqft = 250 + rand() * 450;
   const subjectValue = Math.round(subjectSqft * pricePerSqft / 10000) * 10000;
-  const equityPct = 0.25 + rand() * 0.45;
-  const subjectEquity = Math.round(subjectValue * equityPct / 1000) * 1000;
   const subjectPool = rand() > 0.4;
   const subjectYear = 1985 + Math.floor(rand() * 35);
   const cityMatch = addressSeed.match(/,\s*([^,]+),\s*(\w{2})\s*\d*/);
@@ -237,10 +259,28 @@ export function getMockPropertyData(addressSeed: string): PropertyDataResult {
   // Mock a plausible last sale price (slightly below current value)
   const lastSalePrice = Math.round(subjectValue * (0.75 + rand() * 0.2) / 1000) * 1000;
   const lastSaleDate = new Date(Date.now() - (365 + rand() * 1460) * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+
+  // Use amortization-based equity estimate (consistent with fetchPropertyValue)
+  const estimatedOriginalLoan = lastSalePrice * 0.80; // assume 20% down payment
+  const yearsSincePurchase = (Date.now() - new Date(lastSaleDate).getTime()) / (365.25 * 24 * 60 * 60 * 1000);
+  const assumedRate = yearsSincePurchase > 3 ? 0.03 : 0.065;
+  const r = assumedRate / 12;
+  const n = 30 * 12;
+  const p = Math.min(yearsSincePurchase * 12, n);
+  let remainingBalance: number;
+  if (r === 0) {
+    remainingBalance = estimatedOriginalLoan * (1 - p / n);
+  } else {
+    const factor = Math.pow(1 + r, n);
+    const paidFactor = Math.pow(1 + r, p);
+    remainingBalance = estimatedOriginalLoan * (factor - paidFactor) / (factor - 1);
+  }
+  const mockEquity = Math.round((subjectValue - remainingBalance) / 1000) * 1000;
+
   return {
     subject: {
       value: subjectValue,
-      equity: subjectEquity,
+      equity: mockEquity,
       sqft: subjectSqft,
       beds: subjectBeds,
       baths: subjectBaths,

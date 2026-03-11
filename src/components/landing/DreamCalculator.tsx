@@ -13,41 +13,32 @@ export function DreamCalculator() {
     min: 0,
     max: 0
   });
-  const [equityMultiplier, setEquityMultiplier] = useState(1.4);
   const [additionsCost, setAdditionsCost] = useState(0);
   const [renovationsCost, setRenovationsCost] = useState(0);
+  const [totalValueAdded, setTotalValueAdded] = useState(0);
   // Derived values
   const [newValue, setNewValue] = useState(0);
   const [equity, setEquity] = useState(0);
-  // Handle updates from ProjectBuilder
+  // Handle updates from ProjectBuilder — now uses per-item ROI rates
   const handleBuilderUpdate = (output: ProjectBuilderOutput) => {
     setBudgetRange({
       min: output.estimatedBudgetMin,
       max: output.estimatedBudgetMax
     });
-    setEquityMultiplier(output.equityMultiplier);
     setAdditionsCost(output.additionsCost);
     setRenovationsCost(output.renovationsCost);
+    setTotalValueAdded(output.totalValueAdded);
   };
   useEffect(() => {
-    // Use the average of the estimated budget range for calculations
+    // Use totalValueAdded from per-item ROI rates (consistent with analysis page)
+    const projectedValue = homeValue + totalValueAdded;
     const estimatedBudget = (budgetRange.min + budgetRange.max) / 2;
-    // Calculate new value based on budget and equity multiplier
-    // New Value = Current Value + (Budget * Multiplier)
-    const addedValue = estimatedBudget * equityMultiplier;
-    const projectedValue = homeValue + addedValue;
     setNewValue(projectedValue);
-    setEquity(addedValue - estimatedBudget); // Instant equity is value added minus cost
-  }, [homeValue, budgetRange, equityMultiplier]);
-  const roiPercent = (budgetRange.min + budgetRange.max) / 2 > 0 ? Math.round((equity / ((budgetRange.min + budgetRange.max) / 2)) * 100) : 0;
+    setEquity(totalValueAdded - estimatedBudget); // Instant equity is value added minus cost
+  }, [homeValue, budgetRange, totalValueAdded]);
+  const estimatedBudget = (budgetRange.min + budgetRange.max) / 2;
+  const roiPercent = estimatedBudget > 0 ? Math.round((equity / estimatedBudget) * 100) : 0;
   useMilestoneConfetti(equity, roiPercent);
-  const formatCurrency = (val: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-      maximumFractionDigits: 0
-    }).format(val);
-  };
   const formatCompact = (val: number) => {
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
@@ -69,10 +60,10 @@ export function DreamCalculator() {
             <p className="text-purple-200 text-sm">Real-time ROI estimation</p>
             <p className="text-purple-400/70 text-xs mt-0.5">For illustration only — not a guarantee.</p>
           </div>
-          <div className="bg-green-500/20 border border-green-500/30 rounded-full px-3 py-1 flex items-center gap-1">
-            <TrendingUp size={14} className="text-green-400" />
-            <span className="text-green-300 text-xs font-bold tracking-wide">
-              LIVE DATA
+          <div className="bg-blue-500/20 border border-blue-500/30 rounded-full px-3 py-1 flex items-center gap-1">
+            <TrendingUp size={14} className="text-blue-400" />
+            <span className="text-blue-300 text-xs font-bold tracking-wide">
+              ESTIMATE
             </span>
           </div>
         </div>

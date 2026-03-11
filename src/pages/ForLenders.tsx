@@ -6,7 +6,7 @@ const BENEFITS = [
   {
     icon: Users,
     title: 'We Bring You Qualified Borrowers',
-    desc: 'Homeowners come to ExpandEase ready to renovate. Every file is backed by a highly qualified borrower. We are targeting prime and super-prime homeowners in the Phoenix metro with an average FICO of 740+ and seeking post-renovation LTVs under 80%. They have already committed a $500 deposit for our 3D visualization and PRD, ensuring 100% intent before the file ever hits your desk. We drive the leads; you approve and fund.',
+    desc: 'Homeowners come to ExpandEase ready to renovate. Every file is backed by a highly qualified borrower. We are targeting prime and super-prime homeowners in the Phoenix metro with an average FICO of 740+ and seeking post-renovation LTVs under 80%. They have already committed a $599 deposit for our 3D visualization and PRD, ensuring 100% intent before the file ever hits your desk. We drive the leads; you approve and fund.',
   },
   {
     icon: FileText,
@@ -193,7 +193,7 @@ export function ForLenders() {
                 We give consumers an interactive platform to visualize their project in 3D and instantly plan the financial reality of the build—so every file that reaches you is already grounded in clear scope and intent.
               </p>
               <ul className="space-y-3 mt-auto">
-                {['Qualified intent before application — $500 deposit and real pricing', 'Clear scope and fixed price before underwriting', 'Lender-ready file every time'].map((item, i) => (
+                {['Qualified intent before application — $599 deposit and real pricing', 'Clear scope and fixed price before underwriting', 'Lender-ready file every time'].map((item, i) => (
                   <li key={i} className="flex items-start gap-3 text-gray-300 text-sm md:text-base">
                     <CheckCircle size={18} className="text-emerald-400 mt-0.5 shrink-0" />
                     <span>{item}</span>
@@ -209,7 +209,7 @@ export function ForLenders() {
                 <div>
                   <h3 className="text-lg font-bold text-white mb-2">The Ultimate Filter</h3>
                   <p className="text-gray-300 text-sm md:text-base leading-relaxed mb-2">
-                    Users must engage with accurate pricing and commit a $500 deposit for their PRD before moving forward.
+                    Users must engage with accurate pricing and commit a $599 deposit for their PRD before moving forward.
                   </p>
                   <p className="text-gray-300 text-sm md:text-base leading-relaxed">
                     Result: window-shoppers drop off; you only see serious buyers.

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Home,
@@ -10,9 +10,20 @@ import {
   Circle,
   Sparkles,
   Save,
-  ChevronRight
+  ChevronRight,
+  ChevronLeft,
+  LogOut
 } from 'lucide-react';
 import { useProjectOptional } from './context/ProjectContext';
+import { useAuthOptional } from './context/AuthContext';
+import { SaveWorkModal } from './components/SaveWorkModal';
+import {
+  DEFAULT_CURRENT_HOME_VALUE,
+  USER_RATE_ANNUAL,
+  SECOND_LIEN_RATE_ANNUAL,
+  MASTER_RENOVATION_ITEMS,
+} from './config/renovationDefaults';
+import { resolveExistingBalance, calculateBlendedPayment } from './utils/renovationMath';
 import { PropertyOverview } from './components/PropertyOverview';
 import { PropertyWishlist } from './components/PropertyWishlist';
 import { FinancialAnalysis } from './components/FinancialAnalysis';
@@ -29,9 +40,10 @@ interface SectionProgress {
 
 export function App() {
   const projectCtx = useProjectOptional();
+  const auth = useAuthOptional();
   const project = projectCtx?.project;
   const [activeSection, setActiveSection] = useState<string>('property');
-  const [saved, setSaved] = useState(true);
+  const [saveModalOpen, setSaveModalOpen] = useState(false);
   const [progress, setProgress] = useState<SectionProgress>({
     property: 100,
     wishlist: 0,
@@ -39,24 +51,26 @@ export function App() {
     feasibility: 0
   });
 
-  const estCost = project?.financial?.totalCost ?? 575000;
-  const newValue = project?.financial?.totalValue ?? 3640000;
-  const monthlyPayment = project?.financial?.totalCost
-    ? Math.round(project.financial.totalCost * 0.0065) // ~30-yr payment estimate
-    : 3850;
+  const currentHomeValue = project?.property?.currentValue ?? DEFAULT_CURRENT_HOME_VALUE;
+  const estCost = project?.financial?.totalCost ?? MASTER_RENOVATION_ITEMS.reduce((s, i) => s + i.cost, 0);
+  const totalValueAdded = project?.financial?.totalValue ?? MASTER_RENOVATION_ITEMS.reduce((s, i) => s + i.valueAdded, 0);
+  const newValue = currentHomeValue + totalValueAdded;
+  const userRate = (project?.onboarding?.mortgageRate ?? USER_RATE_ANNUAL * 100) / 100;
+  const quickPayment = useMemo(() => {
+    const { balance } = resolveExistingBalance(
+      currentHomeValue, userRate,
+      project?.financial?.existingMortgageBalance && project.financial.existingMortgageBalance > 0
+        ? project.financial.existingMortgageBalance : undefined,
+      project?.financial?.currentMonthlyPayment && project.financial.currentMonthlyPayment > 0
+        ? project.financial.currentMonthlyPayment : undefined,
+    );
+    const blended = calculateBlendedPayment(balance, estCost, userRate, SECOND_LIEN_RATE_ANNUAL);
+    return Math.round(blended.blendedPayment);
+  }, [currentHomeValue, userRate, estCost, project?.financial?.existingMortgageBalance, project?.financial?.currentMonthlyPayment]);
   const formatEst = (n: number) => n >= 1000000 ? `$${(n/1e6).toFixed(2)}M` : `$${(n/1000).toFixed(0)}K`;
-
-  // Auto-save indicator
-  useEffect(() => {
-    if (!saved) {
-      const timer = setTimeout(() => setSaved(true), 1500);
-      return () => clearTimeout(timer);
-    }
-  }, [saved]);
 
   const handleProgressUpdate = (section: keyof SectionProgress, value: number) => {
     setProgress(prev => ({ ...prev, [section]: value }));
-    setSaved(false);
   };
 
   const totalProgress = Math.round(
@@ -72,6 +86,11 @@ export function App() {
 
   const currentSectionIndex = sections.findIndex(s => s.id === activeSection);
 
+  // Scroll to top of page whenever section changes so user always lands at top of next section
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, [activeSection]);
+
   return (
     <div className="min-h-screen w-full bg-gradient-to-br from-purple-900 via-purple-800 to-pink-700 font-sans text-white relative overflow-hidden">
       {/* Subtle Background */}
@@ -86,12 +105,56 @@ export function App() {
         }}
       />
 
+      {/* Moving glow on all sections (Property, Wishlist, Analysis, Feasibility) */}
+      <div
+        className="pointer-events-none fixed inset-0 z-0 animate-analysis-glow-move"
+        aria-hidden
+        style={{
+          backgroundImage: `
+            radial-gradient(ellipse 90% 70% at 50% 50%, rgba(168, 85, 247, 0.65) 0%, transparent 60%),
+            radial-gradient(ellipse 80% 60% at 50% 50%, rgba(236, 72, 153, 0.55) 0%, transparent 55%),
+            radial-gradient(ellipse 70% 80% at 50% 50%, rgba(59, 130, 246, 0.4) 0%, transparent 50%)
+          `,
+          backgroundSize: '150% 150%, 140% 140%, 160% 160%',
+          backgroundPosition: '0% 50%, 100% 50%, 50% 0%',
+          backgroundRepeat: 'no-repeat',
+        }}
+      />
+      <div
+        className="pointer-events-none fixed inset-0 z-0 animate-pulse-page-glow"
+        aria-hidden
+        style={{
+          background: 'radial-gradient(ellipse 150% 100% at 50% 50%, rgba(255,255,255,0.08) 0%, transparent 60%)',
+        }}
+      />
+
       {/* Sticky Header */}
       <header className="sticky top-0 z-40 bg-purple-900/80 backdrop-blur-xl border-b border-white/10">
         <div className="max-w-5xl mx-auto px-4 py-3">
           <div className="flex items-center justify-between gap-4">
+            {/* Back button — show when not on first section (easy jump back on mobile) */}
+            <div className="flex items-center gap-3 shrink-0">
+              {currentSectionIndex > 0 ? (
+                <motion.button
+                  type="button"
+                  onClick={() => {
+                    const prevIndex = currentSectionIndex - 1;
+                    setActiveSection(sections[prevIndex].id);
+                  }}
+                  whileTap={{ scale: 0.97 }}
+                  transition={{ type: 'spring', stiffness: 400, damping: 17 }}
+                  className="flex items-center gap-1.5 p-2 rounded-xl text-purple-200 hover:text-white hover:bg-white/10 transition-colors"
+                  aria-label={`Back to ${sections[currentSectionIndex - 1].label}`}
+                >
+                  <ChevronLeft size={22} />
+                  <span className="text-sm font-medium hidden sm:inline">Back</span>
+                </motion.button>
+              ) : (
+                <div className="w-10" aria-hidden="true" />
+              )}
+            </div>
             {/* Title */}
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3 min-w-0">
               <div className="p-2 rounded-xl bg-gradient-to-br from-pink-500 to-purple-600">
                 <Sparkles size={20} className="text-white" />
               </div>
@@ -117,33 +180,41 @@ export function App() {
               </div>
             </div>
 
-            {/* Save Status */}
+            {/* Save Work / Saved */}
             <div className="flex items-center gap-2 text-sm">
-              <AnimatePresence mode="wait">
-                {saved ? (
-                  <motion.div
-                    key="saved"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                    className="flex items-center gap-1.5 text-emerald-400"
+              {auth?.user ? (
+                <div className="flex flex-col items-end gap-1">
+                  <button
+                    type="button"
+                    onClick={() => auth.signOut()}
+                    className="flex items-center gap-1.5 px-2 py-1 rounded-lg text-purple-300 hover:text-white hover:bg-white/10 transition-colors text-xs"
+                    aria-label="Sign out"
                   >
+                    <LogOut size={14} />
+                    <span className="hidden sm:inline">Sign out</span>
+                  </button>
+                  <div className="flex items-center gap-1.5 text-emerald-400">
                     <CheckCircle2 size={16} />
-                    <span className="hidden sm:inline text-xs">Saved</span>
-                  </motion.div>
-                ) : (
-                  <motion.div
-                    key="saving"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                    className="flex items-center gap-1.5 text-purple-300"
-                  >
-                    <Save size={16} className="animate-pulse" />
-                    <span className="hidden sm:inline text-xs">Saving...</span>
-                  </motion.div>
-                )}
-              </AnimatePresence>
+                    <span className="hidden sm:inline text-xs">
+                      Saved to your account{(() => {
+                        const firstName = auth.user.user_metadata?.given_name ?? auth.user.user_metadata?.full_name?.split(' ')[0] ?? auth.user.email?.split('@')[0];
+                        return firstName ? `, ${firstName}` : '';
+                      })()}
+                    </span>
+                  </div>
+                </div>
+              ) : (
+                <motion.button
+                  type="button"
+                  onClick={() => setSaveModalOpen(true)}
+                  className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-purple-200 hover:text-white hover:bg-white/10 transition-colors border border-white/10 animate-button-glow"
+                  animate={{ scale: [1, 1.02, 1] }}
+                  transition={{ duration: 2.5, repeat: Infinity, repeatType: 'loop' }}
+                >
+                  <Save size={16} />
+                  <span className="hidden sm:inline text-xs font-medium">Save Work</span>
+                </motion.button>
+              )}
             </div>
           </div>
 
@@ -154,6 +225,7 @@ export function App() {
               const isActive = activeSection === section.id;
               const isCompleted = section.progress >= 100;
               const isLocked = idx > 0 && sections[idx - 1].progress < 50;
+              const isNextSection = idx === currentSectionIndex + 1;
 
               return (
                 <motion.button
@@ -171,7 +243,7 @@ export function App() {
                       : isCompleted
                       ? 'text-emerald-300 hover:bg-white/10'
                       : 'text-purple-300 hover:bg-white/10'
-                  }`}
+                  } ${!isLocked && isNextSection ? 'animate-button-glow-2x' : ''}`}
                 >
                   {isCompleted ? (
                     <CheckCircle2 size={16} className="text-emerald-400" />
@@ -190,7 +262,7 @@ export function App() {
       </header>
 
       {/* Main Content */}
-      <main className="max-w-5xl mx-auto px-4 py-6 relative z-10">
+      <main className="max-w-5xl mx-auto px-4 py-6 relative z-10 min-w-0 overflow-hidden">
         {/* Section Transition */}
         <AnimatePresence mode="wait">
           <motion.div
@@ -211,6 +283,7 @@ export function App() {
                     <Component
                       onProgressUpdate={(value: number) => handleProgressUpdate(section.id as keyof SectionProgress, value)}
                       isActive={true}
+                      onNavigateTo={(sectionId: string) => setActiveSection(sectionId)}
                     />
                   </div>
                 );
@@ -251,9 +324,11 @@ export function App() {
             disabled={currentSectionIndex === 0}
             whileTap={currentSectionIndex === 0 ? undefined : { scale: 0.97 }}
             transition={{ type: 'spring', stiffness: 400, damping: 17 }}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl text-purple-300 hover:text-white hover:bg-white/10 transition-all disabled:opacity-30 disabled:cursor-not-allowed order-2 sm:order-1"
+            className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-purple-200 hover:text-white hover:bg-white/10 transition-all disabled:opacity-30 disabled:cursor-not-allowed order-2 sm:order-1 min-w-[140px] justify-center sm:justify-start border border-white/10 hover:border-white/20"
+            aria-label={currentSectionIndex > 0 ? `Back to ${sections[currentSectionIndex - 1].label}` : undefined}
           >
-            Previous
+            <ChevronLeft size={18} />
+            {currentSectionIndex > 0 ? `Back to ${sections[currentSectionIndex - 1].label}` : 'Previous'}
           </motion.button>
 
           {/* Quick Stats — centered when on last section so nothing is off-center */}
@@ -270,7 +345,7 @@ export function App() {
             <div className="w-px h-8 bg-white/20" />
             <div className="text-center">
               <p className="text-purple-300 text-xs">Monthly</p>
-              <p className="font-bold text-white">${monthlyPayment.toLocaleString()}</p>
+              <p className="font-bold text-white">${quickPayment.toLocaleString()}</p>
             </div>
           </div>
 
@@ -285,7 +360,7 @@ export function App() {
               }}
               whileTap={{ scale: 0.97 }}
               transition={{ type: 'spring', stiffness: 400, damping: 17 }}
-              className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-white text-purple-900 font-bold hover:bg-gray-100 transition-all order-3"
+              className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-white text-purple-900 font-bold hover:bg-gray-100 transition-all order-3 animate-button-glow-2x"
             >
               Next Section
               <ChevronRight size={18} />
@@ -309,6 +384,7 @@ export function App() {
         </footer>
       </main>
 
+      <SaveWorkModal isOpen={saveModalOpen} onClose={() => setSaveModalOpen(false)} />
       <ChatBanner />
     </div>
   );

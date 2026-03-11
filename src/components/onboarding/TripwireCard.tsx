@@ -2,6 +2,7 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { ArrowRight, BarChart3 } from 'lucide-react';
 import { useOnboarding } from '../../context/OnboardingContext';
+import { CAD_PACKAGE_PRICE } from '../../config/renovationDefaults';
 interface TripwireCardProps {
   onNext: () => void;
 }
@@ -58,23 +59,23 @@ export function TripwireCard({ onNext }: TripwireCardProps) {
             shadow: '0 0 50px rgba(236,72,153,0.2)'
           }}>
 
+          <div className="absolute top-0 left-0 bg-gradient-to-br from-amber-400 to-orange-500 text-white text-xs font-black px-3 py-1.5 rounded-br-xl shadow-lg shadow-orange-500/30">$8,000 Value!</div>
           <div className="absolute top-0 right-0 bg-pink-500 text-white text-xs font-bold px-3 py-1 rounded-bl-xl">
             MOST POPULAR
           </div>
 
-          <div className="w-12 h-12 bg-pink-500/20 rounded-full flex items-center justify-center mb-6">
+          <div className="w-12 h-12 bg-pink-500/20 rounded-full flex items-center justify-center mb-6 mt-2">
             <div className="text-pink-400" size={24} />
           </div>
           <h3 className="text-2xl font-bold text-white mb-2">
-            Custom Visualization
+            Full Design Package
           </h3>
           <p className="text-gray-300 mb-8 flex-grow">
-            Get a photorealistic 3D render of your renovated home designed by
-            our architects.
+            3D photorealistic renders, color elevations, before &amp; after floor plans — printed large-format and mailed to your door.
           </p>
           <div className="mt-auto">
             <span className="block text-sm text-pink-300 mb-2 uppercase tracking-wider font-bold">
-              $500 Deposit
+              ${CAD_PACKAGE_PRICE} — Saves you $5K–$8K
             </span>
             <button
               onClick={() => handleSelect('visualization')}

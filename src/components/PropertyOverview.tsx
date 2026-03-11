@@ -81,6 +81,21 @@ export function PropertyOverview({ onProgressUpdate }: PropertyOverviewProps) {
     }
   }, [loading, displayAddress, subject.value, subject.equity, subject.beds, projectCtx]);
 
+  // Persist property edits automatically whenever user changes beds, baths, sqft, year built, or pool
+  useEffect(() => {
+    if (!projectCtx) return;
+    projectCtx.updateProject({
+      property: {
+        ...projectCtx.project.property,
+        beds: edits.beds,
+        baths: edits.baths,
+        sqft: edits.sqft,
+        yearBuilt: edits.yearBuilt,
+        pool: edits.pool,
+      },
+    });
+  }, [edits.beds, edits.baths, edits.sqft, edits.yearBuilt, edits.pool, projectCtx]);
+
   useEffect(() => {
     onProgressUpdate?.(100);
   }, [onProgressUpdate]);
@@ -94,7 +109,7 @@ export function PropertyOverview({ onProgressUpdate }: PropertyOverviewProps) {
             <p className="text-purple-300/70 text-sm mt-1">Loading property details…</p>
           </div>
         </div>
-        <div className="bg-white/10 backdrop-blur-md rounded-2xl border border-white/20 p-5">
+        <div className="bg-white/10 backdrop-blur-md rounded-2xl border border-white/20 p-5 overflow-hidden min-w-0">
           <div className="flex items-center gap-3">
             <div className="p-2.5 rounded-xl bg-purple-500/20">
               <Home size={20} className="text-purple-300" />
@@ -146,10 +161,10 @@ export function PropertyOverview({ onProgressUpdate }: PropertyOverviewProps) {
       </AnimatePresence>
 
       {/* Section Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 items-center text-center sm:flex-row sm:items-center sm:justify-between sm:text-left">
         <div>
           <h2 className="text-2xl font-bold text-white">Your Property</h2>
-          <p className="text-purple-300/70 text-sm mt-1 flex items-center gap-2">
+          <p className="text-purple-300/70 text-sm mt-1 flex flex-col items-center gap-2 sm:flex-row sm:items-center sm:gap-2">
             Confirm your home details for accurate estimates
             {isRealData && (
               <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-emerald-500/20 text-emerald-300 text-xs font-medium">
@@ -159,25 +174,8 @@ export function PropertyOverview({ onProgressUpdate }: PropertyOverviewProps) {
           </p>
         </div>
         <button
-          onClick={() => {
-            if (isEditing && projectCtx) {
-              projectCtx.updateProject({
-                property: {
-                  ...projectCtx.project.property,
-                  address: displayAddress,
-                  beds: edits.beds,
-                  baths: edits.baths,
-                  sqft: edits.sqft,
-                  yearBuilt: edits.yearBuilt,
-                  pool: edits.pool,
-                  currentValue: subject.value > 0 ? subject.value : projectCtx.project.property.currentValue,
-                  equity: subject.equity ?? projectCtx.project.property.equity,
-                },
-              });
-            }
-            setIsEditing(!isEditing);
-          }}
-          className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-white text-sm font-medium transition-all"
+          onClick={() => setIsEditing(!isEditing)}
+          className="mt-2 sm:mt-0 flex items-center gap-2 px-4 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-white text-sm font-medium transition-all"
         >
           {isEditing ? <Check size={16} /> : <Edit2 size={16} />}
           {isEditing ? 'Done' : 'Edit Details'}
@@ -185,18 +183,18 @@ export function PropertyOverview({ onProgressUpdate }: PropertyOverviewProps) {
       </div>
 
       {/* Address Card */}
-      <div className="bg-white/10 backdrop-blur-md rounded-2xl border border-white/20 p-5">
-        <div className="flex items-center gap-3">
-          <div className="p-2.5 rounded-xl bg-purple-500/20">
+      <div className="bg-white/10 backdrop-blur-md rounded-2xl border border-white/20 p-5 overflow-hidden min-w-0">
+        <div className="flex items-center gap-3 min-w-0">
+          <div className="p-2.5 rounded-xl bg-purple-500/20 shrink-0">
             <Home size={20} className="text-purple-300" />
           </div>
-          <div className="flex-1">
+          <div className="flex-1 min-w-0">
             <p className="text-purple-300 text-xs uppercase tracking-wider">Property Address</p>
-            <p className="text-lg font-semibold text-white">{displayAddress}</p>
+            <p className="text-lg font-semibold text-white break-words card-text-wrap">{displayAddress}</p>
           </div>
-          <div className="text-right hidden sm:block">
+          <div className="text-right hidden sm:block shrink-0 min-w-0">
             <p className="text-purple-300 text-xs uppercase tracking-wider">Estimated Value</p>
-            <p className="text-2xl font-bold text-emerald-400">{formatPrice(subject.value)}</p>
+            <p className="text-2xl font-bold text-emerald-400 break-words">{formatPrice(subject.value)}</p>
           </div>
         </div>
       </div>
@@ -286,7 +284,7 @@ export function PropertyOverview({ onProgressUpdate }: PropertyOverviewProps) {
       </div>
 
       {/* Comparable Properties - Expandable */}
-      <div className="bg-white/10 backdrop-blur-md rounded-2xl border border-white/20 overflow-hidden">
+      <div className="bg-white/10 backdrop-blur-md rounded-2xl border border-white/20 overflow-hidden min-w-0">
         <button
           onClick={() => setShowComps(!showComps)}
           className="w-full p-4 flex items-center justify-between hover:bg-white/5 transition-colors"

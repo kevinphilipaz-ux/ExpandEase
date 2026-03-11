@@ -8,38 +8,82 @@ export interface UseGooglePlacesAutocompleteOptions {
   includedRegionCodes?: string[];
   /** Only run when this is true. */
   enabled?: boolean;
+  /**
+   * When true (default), on mobile use the classic Autocomplete dropdown below the input
+   * instead of PlaceAutocompleteElement, to avoid full-screen takeover and scroll-to-top.
+   */
+  useInlineOnMobile?: boolean;
+}
+
+const MOBILE_BREAKPOINT = 768;
+function isMobile(): boolean {
+  if (typeof window === 'undefined') return false;
+  return window.matchMedia(`(max-width: ${MOBILE_BREAKPOINT}px)`).matches;
 }
 
 /**
- * Mount Google PlaceAutocompleteElement (new API) into a container.
- * Use a container ref; the hook appends the element and listens for gmp-select.
- * Returns useFallback: true when the API key is missing or script fails (e.g. on Vercel without env var or domain allowed).
+ * Mount Google PlaceAutocompleteElement (new API) on desktop, or classic Autocomplete on mobile
+ * so the dropdown stays below the address bar without full-screen takeover or scroll-to-top.
+ * Returns useFallback: true when using plain input + classic Autocomplete (mobile) or when API is unavailable.
  */
 export function useGooglePlacesAutocomplete(
   containerRef: React.RefObject<HTMLDivElement | null>,
   options: UseGooglePlacesAutocompleteOptions
 ) {
-  const { onPlaceSelect, includedRegionCodes = ['us'], enabled = true } = options;
+  const { onPlaceSelect, includedRegionCodes = ['us'], enabled = true, useInlineOnMobile = true } = options;
   const onPlaceSelectRef = useRef(onPlaceSelect);
   onPlaceSelectRef.current = onPlaceSelect;
-  const elementRef = useRef<HTMLElement | null>(null);
-  const [useFallback, setUseFallback] = useState(false);
+  const elementRef = useRef<HTMLElement | unknown>(null);
+  const [useFallback, setUseFallback] = useState(() => useInlineOnMobile && isMobile());
 
   useEffect(() => {
     if (!enabled || !containerRef.current) return;
 
     let cancelled = false;
+    const useClassicOnMobile = useInlineOnMobile && isMobile();
+    if (useClassicOnMobile) {
+      setUseFallback(true);
+    }
     if (!isGoogleMapsConfigured()) {
       setUseFallback(true);
-      return;
+      if (!useClassicOnMobile) return;
     }
 
     let fallbackTimer: number | null = null;
 
     loadGoogleMapsScript()
-      .then(() => {
+      .then(async () => {
         if (cancelled || !containerRef.current) return;
         const google = window.google;
+        if (!google?.maps?.importLibrary) return;
+
+        // Mobile: use classic Autocomplete so dropdown appears below the bar (no full-screen, no scroll-to-top)
+        if (useClassicOnMobile) {
+          const placesLib = await (google.maps.importLibrary as (lib: string) => Promise<{ Autocomplete?: new (input: HTMLInputElement, opts?: { componentRestrictions?: { country: string | string[] } }) => { getPlace: () => { formatted_address?: string }; addListener: (event: string, fn: () => void) => void } }>)('places');
+          const Autocomplete = placesLib?.Autocomplete;
+          if (!Autocomplete) {
+            setUseFallback(true);
+            return;
+          }
+          const tryAttach = () => {
+            const input = containerRef.current?.querySelector('input');
+            if (!input || cancelled) return;
+            const componentRestrictions = includedRegionCodes?.length
+              ? { country: includedRegionCodes as string[] }
+              : undefined;
+            const autocomplete = new Autocomplete(input, { componentRestrictions });
+            autocomplete.addListener('place_changed', () => {
+              const place = autocomplete.getPlace();
+              const addr = place?.formatted_address;
+              if (addr) onPlaceSelectRef.current(addr);
+            });
+            elementRef.current = autocomplete as unknown as HTMLElement;
+          };
+          tryAttach();
+          if (!elementRef.current) requestAnimationFrame(() => tryAttach());
+          return;
+        }
+
         const places = google?.maps?.places as { PlaceAutocompleteElement?: new (opts?: { includedRegionCodes?: string[] }) => HTMLElement } | undefined;
         const PlaceAutocompleteElement = places?.PlaceAutocompleteElement;
         if (!PlaceAutocompleteElement) {
@@ -93,8 +137,9 @@ export function useGooglePlacesAutocomplete(
           const input = el.shadowRoot?.querySelector?.('input');
           if (!input || input.disabled) {
             setUseFallback(true);
-            if (elementRef.current && containerRef.current?.contains(elementRef.current)) {
-              elementRef.current.remove();
+            const current = elementRef.current;
+            if (current instanceof HTMLElement && containerRef.current?.contains(current)) {
+              current.remove();
             }
             elementRef.current = null;
           }
@@ -110,12 +155,13 @@ export function useGooglePlacesAutocomplete(
     return () => {
       cancelled = true;
       if (fallbackTimer) window.clearTimeout(fallbackTimer);
-      if (elementRef.current && containerRef.current?.contains(elementRef.current)) {
-        elementRef.current.remove();
+      const el = elementRef.current;
+      if (el instanceof HTMLElement && containerRef.current?.contains(el)) {
+        el.remove();
       }
       elementRef.current = null;
     };
-  }, [enabled, includedRegionCodes?.join(',')]);
+  }, [enabled, includedRegionCodes?.join(','), useInlineOnMobile]);
 
   return { useFallback };
 }

@@ -25,7 +25,11 @@ dist-ssr
 *.sln
 *.sw?
 
+# Archive / junk
+src.zip
+
 # Junk entries (path-named artifacts from prior shell session)
 exec*
 gcloud*
 :/Users
+.vercel

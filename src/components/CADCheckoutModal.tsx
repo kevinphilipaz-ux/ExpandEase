@@ -1,6 +1,13 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Lock, CheckCircle2, CreditCard, Sparkles, AlertCircle } from 'lucide-react';
+import {
+    CAD_PACKAGE_PRICE,
+    CAD_PACKAGE_US_PRICE_LOW,
+    CAD_PACKAGE_US_PRICE_HIGH,
+    CAD_TURNAROUND,
+    CAD_DELIVERABLES,
+} from '../config/renovationDefaults';
 
 interface CADCheckoutModalProps {
     onClose: () => void;
@@ -20,6 +27,9 @@ export function CADCheckoutModal({ onClose, isOpen }: CADCheckoutModalProps) {
             setStep(2);
         }, 2000);
     };
+
+    const usLow = `$${(CAD_PACKAGE_US_PRICE_LOW / 1000).toFixed(0)}K`;
+    const usHigh = `$${(CAD_PACKAGE_US_PRICE_HIGH / 1000).toFixed(0)}K`;
 
     return (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
@@ -52,25 +62,24 @@ export function CADCheckoutModal({ onClose, isOpen }: CADCheckoutModalProps) {
 
                     <div className="relative z-10">
                         <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-white/10 rounded-full text-xs font-bold uppercase tracking-widest text-pink-300 mb-6 border border-white/10">
-                            <Sparkles size={14} /> Premium Upgrade
+                            <Sparkles size={14} /> Full Design Package
                         </div>
-                        <h3 className="text-3xl font-bold mb-4 font-serif">Visualize your dream space.</h3>
-                        <p className="text-gray-300 text-sm leading-relaxed mb-8">
-                            Don't leave the details to imagination. Our dedicated interior designers will create stunning, photorealistic 3D renders of your exact floorplan.
+                        <h3 className="text-3xl font-bold mb-4 font-serif">See your renovation before you build it.</h3>
+                        <p className="text-gray-300 text-sm leading-relaxed mb-6">
+                            Our dedicated design team creates a complete visualization package for your renovation — photorealistic 3D renders, color elevations, and floor plans, all printed large-format and mailed to your door.
                         </p>
 
-                        <ul className="space-y-4">
-                            {[
-                                'Full 3D exterior elevation',
-                                'Interior design & material visualization',
-                                'Lighting & texture mockups',
-                                'Delivered in 48 hours'
-                            ].map((item, i) => (
+                        <ul className="space-y-3">
+                            {CAD_DELIVERABLES.map((item, i) => (
                                 <li key={i} className="flex items-start gap-3 text-sm text-gray-300">
                                     <CheckCircle2 size={18} className="text-pink-400 shrink-0 mt-0.5" />
                                     {item}
                                 </li>
                             ))}
+                            <li className="flex items-start gap-3 text-sm text-gray-300">
+                                <CheckCircle2 size={18} className="text-pink-400 shrink-0 mt-0.5" />
+                                Delivered in {CAD_TURNAROUND}
+                            </li>
                         </ul>
                     </div>
 
@@ -91,18 +100,24 @@ export function CADCheckoutModal({ onClose, isOpen }: CADCheckoutModalProps) {
                                 className="space-y-6"
                             >
                                 <div>
-                                    <h2 className="text-2xl font-bold text-gray-900 mb-2">Upgrade to 3D CAD Package</h2>
+                                    <h2 className="text-2xl font-bold text-gray-900 mb-2">Complete Design Package</h2>
                                     <p className="text-gray-500 text-sm">Coming soon — payment will be available when we launch. Preview below.</p>
                                 </div>
 
-                                <div className="bg-gray-50 rounded-2xl p-5 border border-gray-100 flex items-center justify-between">
-                                    <div>
-                                        <h4 className="font-bold text-gray-900">Custom 3D Rendering Service</h4>
-                                        <p className="text-sm text-gray-500 mt-1">Expedited 48-hour delivery from our design team.</p>
+                                <div className="bg-gray-50 rounded-2xl p-5 border border-gray-100 relative overflow-hidden">
+                                    <div className="absolute -top-0 -right-0 bg-gradient-to-br from-amber-400 to-orange-500 text-white text-xs font-black px-3 py-1.5 rounded-bl-xl shadow-lg">$8,000 Value!</div>
+                                    <div className="flex items-center justify-between mb-3">
+                                        <div>
+                                            <h4 className="font-bold text-gray-900">3D Renders, Elevations & Floor Plans</h4>
+                                            <p className="text-sm text-gray-500 mt-1">Photorealistic package delivered in {CAD_TURNAROUND}</p>
+                                        </div>
+                                        <div className="text-right">
+                                            <p className="text-2xl font-bold text-gray-900">${CAD_PACKAGE_PRICE}</p>
+                                        </div>
                                     </div>
-                                    <div className="text-right">
-                                        <p className="text-2xl font-bold text-gray-900">$99</p>
-                                        <p className="text-xs text-gray-400 line-through">Normally $350</p>
+                                    <div className="flex items-center gap-2 mt-2 pt-3 border-t border-gray-200">
+                                        <span className="text-xs font-semibold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-full">Save {usLow}–{usHigh}</span>
+                                        <span className="text-xs text-gray-400">vs. a US architecture firm</span>
                                     </div>
                                 </div>
 
@@ -135,10 +150,10 @@ export function CADCheckoutModal({ onClose, isOpen }: CADCheckoutModalProps) {
                                 >
                                     {isProcessing ? (
                                         <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1, ease: 'linear' }}>
-                                            <AlertCircle size={20} /> {/* Using AlertCircle as a spinner proxy */}
+                                            <AlertCircle size={20} />
                                         </motion.div>
                                     ) : (
-                                        <>Pay $99.00</>
+                                        <>Pay ${CAD_PACKAGE_PRICE}.00</>
                                     )}
                                 </button>
 
@@ -158,15 +173,15 @@ export function CADCheckoutModal({ onClose, isOpen }: CADCheckoutModalProps) {
                                 <div className="w-20 h-20 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-6">
                                     <CheckCircle2 size={40} />
                                 </div>
-                                <h2 className="text-3xl font-bold text-gray-900 mb-4">Payment Successful!</h2>
+                                <h2 className="text-3xl font-bold text-gray-900 mb-4">You're All Set!</h2>
                                 <p className="text-gray-600 mb-8 max-w-xs mx-auto">
-                                    Our design team in the Philippines has been notified. You will receive your stunning 3D renders via email within 48 hours.
+                                    Our design team has been notified. You'll receive your complete visualization package — 3D renders, color elevations, and floor plans — within {CAD_TURNAROUND}. Large-format prints will follow by mail.
                                 </p>
                                 <button
                                     onClick={onClose}
                                     className="px-8 py-3 bg-gray-100 hover:bg-gray-200 text-gray-900 font-bold rounded-xl transition-colors"
                                 >
-                                    Return to Design Package
+                                    Return to Dashboard
                                 </button>
                             </motion.div>
                         </AnimatePresence>

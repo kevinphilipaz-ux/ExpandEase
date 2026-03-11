@@ -739,7 +739,8 @@ export function LandingPage() {
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_70%_60%_at_50%_50%,rgba(168,85,247,0.08),_transparent_65%)] animate-pulse-opacity" aria-hidden style={{ animationDuration: '7s' }} />
         <div className="relative z-10 max-w-6xl mx-auto">
           <div className="text-center mb-12">
-            <h2 className="text-3xl md:text-5xl font-bold mb-4">Real Homeowners, Real Results</h2>
+            <h2 className="text-3xl md:text-5xl font-bold mb-4">What Your Renovation Could Look Like</h2>
+            <p className="text-purple-300/70 text-sm">Hypothetical scenarios for illustration purposes only</p>
           </div>
 
           <div className="grid md:grid-cols-3 gap-6">

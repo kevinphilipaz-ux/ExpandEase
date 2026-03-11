@@ -1,33 +1,65 @@
-import React from 'react';
+import React, { useMemo } from 'react';
+import { useProjectOptional } from '../../context/ProjectContext';
+import { MASTER_RENOVATION_ITEMS, SECOND_LIEN_RATE_ANNUAL, USER_RATE_ANNUAL, DEFAULT_CURRENT_HOME_VALUE } from '../../config/renovationDefaults';
+import { calculateDrawSchedule, resolveExistingBalance, monthlyPayment, calculateBlendedPayment } from '../../utils/renovationMath';
+
 export function CashflowTimeline() {
-  const months = Array.from(
-    {
-      length: 12
-    },
-    (_, i) => i + 1
+  const projectCtx = useProjectOptional();
+  const fin = projectCtx?.project?.financial;
+  const onboarding = projectCtx?.project?.onboarding;
+  const property = projectCtx?.project?.property;
+
+  const totalCost = fin?.totalCost ?? MASTER_RENOVATION_ITEMS.reduce((s, i) => s + i.cost, 0);
+  const currentHomeValue = property?.currentValue ?? DEFAULT_CURRENT_HOME_VALUE;
+  const userRate = (onboarding?.mortgageRate ?? USER_RATE_ANNUAL * 100) / 100;
+
+  // Dynamic draw schedule based on total cost
+  const drawSchedule = useMemo(() => calculateDrawSchedule(totalCost, 12), [totalCost]);
+
+  // Build month-keyed maps from the draw schedule
+  const bankDraws = useMemo(() => {
+    const map: Record<number, number> = {};
+    drawSchedule.forEach((d) => { map[d.month] = d.drawAmount; });
+    return map;
+  }, [drawSchedule]);
+
+  const milestones = useMemo(() => {
+    const map: Record<number, string> = {};
+    drawSchedule.forEach((d) => { map[d.month] = d.label; });
+    return map;
+  }, [drawSchedule]);
+
+  // Max draw for bar scaling
+  const maxDraw = useMemo(() => Math.max(...drawSchedule.map((d) => d.drawAmount), 1), [drawSchedule]);
+
+  // Dynamic start/end payment labels
+  const { balance: existingBalance } = useMemo(
+    () => resolveExistingBalance(
+      currentHomeValue, userRate,
+      fin?.existingMortgageBalance && fin.existingMortgageBalance > 0 ? fin.existingMortgageBalance : undefined,
+      fin?.currentMonthlyPayment && fin.currentMonthlyPayment > 0 ? fin.currentMonthlyPayment : undefined,
+    ),
+    [currentHomeValue, userRate, fin?.existingMortgageBalance, fin?.currentMonthlyPayment],
   );
-  const milestones: Record<number, string> = {
-    1: 'Design',
-    3: 'Foundation',
-    6: 'Framing',
-    9: 'Finishes',
-    12: 'Complete'
-  };
-  const cashNeeded: Record<number, number> = {
-    1: 500,
-    6: 2000
-  };
-  const bankDraws: Record<number, number> = {
-    3: 50000,
-    6: 80000,
-    9: 60000,
-    12: 45000
-  };
+  const existingPmt = Math.round(monthlyPayment(existingBalance, userRate));
+  const blended = useMemo(
+    () => calculateBlendedPayment(existingBalance, totalCost, userRate, SECOND_LIEN_RATE_ANNUAL),
+    [existingBalance, totalCost, userRate],
+  );
+  const endPmt = Math.round(blended.blendedPayment);
+
+  const months = Array.from({ length: 12 }, (_, i) => i + 1);
+  const cashNeeded: Record<number, number> = { 1: 500, 6: 2000 };
+
   // Payment ramp up logic for graph
   const getPaymentHeight = (month: number) => {
-    // Base height 20%, max height 90%
     const progress = month / 12;
     return 20 + progress * 70;
+  };
+
+  const formatCompact = (val: number) => {
+    if (val >= 1000) return `$${(val / 1000).toFixed(1)}k`;
+    return `$${val}`;
   };
   return (
     <div className="space-y-6">
@@ -79,7 +111,7 @@ export function CashflowTimeline() {
             <div
               className="w-full bg-purple-500/40 border border-purple-400/50 rounded-t-sm relative group hover:bg-purple-500/60 transition-colors"
               style={{
-                height: `${bankDraws[m] / 80000 * 100}%`
+                height: `${bankDraws[m] / maxDraw * 100}%`
               }}>
 
                   <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 text-[10px] text-purple-300 font-mono opacity-0 group-hover:opacity-100 transition-opacity">
@@ -133,12 +165,12 @@ export function CashflowTimeline() {
 
               {m === 1 &&
             <span className="text-[10px] text-gray-500 font-mono">
-                  $2.2k
+                  {formatCompact(existingPmt)}
                 </span>
             }
               {m === 12 &&
             <span className="text-[10px] text-white font-mono font-bold">
-                  $3.8k
+                  {formatCompact(endPmt)}
                 </span>
             }
             </div>

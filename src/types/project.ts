@@ -70,6 +70,8 @@ export interface ProjectWishlist {
   kitchenFeatures?: string[];
   /** Optional: bathroom fixtures/features */
   bathroomFeatures?: string[];
+  /** Optional: interior detail checkboxes (Crown Molding, Fireplace, etc.) */
+  interiorDetails?: string[];
   /** Optional: exterior materials, windows */
   exteriorDetails?: string[];
   /** Optional: outdoor/yard features */
@@ -93,6 +95,8 @@ export interface ProjectFinancial {
   downPaymentAtPurchase?: number;
   /** Existing mortgage balance (for lender DTI / eligibility) — optional; overrides balance derived from current payment when set */
   existingMortgageBalance?: number;
+  /** Extra $/month user is willing to consider (Analysis slider) — restores when they return */
+  paymentSlider?: number;
 }
 
 /** Contractor sign-off (filled on Contractor Review) */

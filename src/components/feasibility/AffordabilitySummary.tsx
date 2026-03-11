@@ -1,30 +1,35 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { CheckCircle, AlertTriangle, XCircle } from 'lucide-react';
+import { useProjectOptional } from '../../context/ProjectContext';
+import { calculateAffordability } from '../../utils/renovationMath';
 interface AffordabilitySummaryProps {
   monthlyPayment: number;
 }
 export function AffordabilitySummary({
   monthlyPayment
 }: AffordabilitySummaryProps) {
-  const [income, setIncome] = useState(17000);
-  const [debts, setDebts] = useState(4500);
-  const [dti, setDti] = useState(0);
-  const [freeCashflow, setFreeCashflow] = useState(0);
-  const [feasibility, setFeasibility] = useState<'HIGH' | 'MEDIUM' | 'LOW'>(
-    'HIGH'
-  );
+  const projectCtx = useProjectOptional();
+  const fin = projectCtx?.project?.financial;
+  const onboarding = projectCtx?.project?.onboarding;
+
+  // Initialize from project context, fall back to reasonable defaults
+  const [income, setIncome] = useState(fin?.monthlyIncome || (onboarding?.income ? Math.round(onboarding.income / 12) : 17000));
+  const [debts, setDebts] = useState(fin?.monthlyDebts || 4500);
+
+  // Sync if project context updates
   useEffect(() => {
-    // Calculate DTI: (Debts + New Payment) / Income
-    const totalMonthlyObligations = debts + monthlyPayment;
-    const calculatedDti = totalMonthlyObligations / income * 100;
-    setDti(Math.round(calculatedDti));
-    // Calculate Free Cashflow
-    setFreeCashflow(income - totalMonthlyObligations);
-    // Determine Feasibility
-    if (calculatedDti < 36) setFeasibility('HIGH');else
-    if (calculatedDti < 43) setFeasibility('MEDIUM');else
-    setFeasibility('LOW');
-  }, [income, debts, monthlyPayment]);
+    if (fin?.monthlyIncome && fin.monthlyIncome > 0) setIncome(fin.monthlyIncome);
+    else if (onboarding?.income && onboarding.income > 0) setIncome(Math.round(onboarding.income / 12));
+  }, [fin?.monthlyIncome, onboarding?.income]);
+
+  useEffect(() => {
+    if (fin?.monthlyDebts && fin.monthlyDebts > 0) setDebts(fin.monthlyDebts);
+  }, [fin?.monthlyDebts]);
+
+  const { dtiPct: dti, freeCashflow, feasibility } = useMemo(
+    () => calculateAffordability(income, debts, monthlyPayment),
+    [income, debts, monthlyPayment],
+  );
   const formatCurrency = (val: number) => {
     return new Intl.NumberFormat('en-US', {
       style: 'currency',

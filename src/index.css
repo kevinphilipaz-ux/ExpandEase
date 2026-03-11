@@ -42,3 +42,77 @@ gmp-place-autocomplete {
 .safe-area-right {
   padding-right: env(safe-area-inset-right, 0);
 }
+
+/* Hero gradient orbs — visible pulse for AI-forward movement */
+@keyframes pulse-glow {
+  0%, 100% { opacity: 0.6; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.12); }
+}
+@keyframes pulse-glow-slow {
+  0%, 100% { opacity: 0.7; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.1); }
+}
+@keyframes pulse-opacity {
+  0%, 100% { opacity: 0.5; }
+  50% { opacity: 1; }
+}
+/* Analysis page: visible “breathing” glow so pulse reads on purple app background */
+@keyframes pulse-page-glow {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 1; }
+}
+@keyframes analysis-glow-move {
+  0% { background-position: 0% 50%, 100% 50%, 50% 0%; }
+  33% { background-position: 100% 50%, 0% 50%, 50% 100%; }
+  66% { background-position: 50% 0%, 50% 100%, 0% 50%; }
+  100% { background-position: 0% 50%, 100% 50%, 50% 0%; }
+}
+.animate-pulse-glow {
+  animation: pulse-glow 4s ease-in-out infinite;
+}
+.animate-pulse-glow-slow {
+  animation: pulse-glow-slow 6s ease-in-out infinite;
+}
+.animate-pulse-opacity {
+  animation: pulse-opacity 4s ease-in-out infinite;
+}
+.animate-pulse-page-glow {
+  animation: pulse-page-glow 5s ease-in-out infinite;
+}
+.animate-analysis-glow-move {
+  animation: analysis-glow-move 6s ease-in-out infinite;
+}
+
+/* Button glow: Save Work and other CTAs */
+@keyframes button-glow {
+  0%, 100% {
+    box-shadow: 0 0 12px rgba(168, 85, 247, 0.4), 0 0 24px rgba(236, 72, 153, 0.2);
+  }
+  50% {
+    box-shadow: 0 0 20px rgba(168, 85, 247, 0.7), 0 0 40px rgba(236, 72, 153, 0.4);
+  }
+}
+@keyframes button-glow-2x {
+  0%, 100% {
+    box-shadow: 0 0 16px rgba(168, 85, 247, 0.5), 0 0 32px rgba(236, 72, 153, 0.3);
+  }
+  50% {
+    box-shadow: 0 0 32px rgba(168, 85, 247, 0.9), 0 0 64px rgba(236, 72, 153, 0.6);
+  }
+}
+.animate-button-glow {
+  animation: button-glow 2.5s ease-in-out infinite;
+}
+.animate-button-glow-2x {
+  animation: button-glow-2x 2.5s ease-in-out infinite;
+}
+
+/* Card content: keep text inside borders on mobile (overflow + word wrap) */
+.card-contain {
+  overflow: hidden;
+  min-width: 0;
+}
+.card-text-wrap {
+  overflow-wrap: break-word;
+  word-break: break-word;
+}

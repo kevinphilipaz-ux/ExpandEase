@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef, useEffect } from 'react';
+import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
@@ -15,6 +15,15 @@ import {
   TrendingUp,
   Wallet
 } from 'lucide-react';
+import { useProjectOptional } from '../context/ProjectContext';
+import {
+  DEFAULT_CURRENT_HOME_VALUE,
+  USER_RATE_ANNUAL,
+  SECOND_LIEN_RATE_ANNUAL,
+  MASTER_RENOVATION_ITEMS,
+  CAD_PACKAGE_PRICE,
+} from '../config/renovationDefaults';
+import { resolveExistingBalance, calculateBlendedPayment } from '../utils/renovationMath';
 
 const GENERATION_STEPS = [
   'Parsing your dream home preferences…',
@@ -38,6 +47,30 @@ export function RecommendationSection({ compact, variant = 'full' }: Recommendat
   const navigate = useNavigate();
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Dynamic values from project context
+  const projectCtx = useProjectOptional();
+  const fin = projectCtx?.project?.financial;
+  const property = projectCtx?.project?.property;
+  const onboarding = projectCtx?.project?.onboarding;
+
+  const currentHomeValue = property?.currentValue ?? DEFAULT_CURRENT_HOME_VALUE;
+  const totalCost = fin?.totalCost ?? MASTER_RENOVATION_ITEMS.reduce((s, i) => s + i.cost, 0);
+  const totalValueAdded = fin?.totalValue ?? MASTER_RENOVATION_ITEMS.reduce((s, i) => s + i.valueAdded, 0);
+  const postRenovationValue = currentHomeValue + totalValueAdded;
+  const userRate = (onboarding?.mortgageRate ?? USER_RATE_ANNUAL * 100) / 100;
+
+  const blendedPayment = useMemo(() => {
+    const { balance } = resolveExistingBalance(
+      currentHomeValue, userRate,
+      fin?.existingMortgageBalance && fin.existingMortgageBalance > 0 ? fin.existingMortgageBalance : undefined,
+      fin?.currentMonthlyPayment && fin.currentMonthlyPayment > 0 ? fin.currentMonthlyPayment : undefined,
+    );
+    const blended = calculateBlendedPayment(balance, totalCost, userRate, SECOND_LIEN_RATE_ANNUAL);
+    return Math.round(blended.blendedPayment);
+  }, [currentHomeValue, userRate, totalCost, fin?.existingMortgageBalance, fin?.currentMonthlyPayment]);
+
+  const fmtCompact = (n: number) => n >= 1_000_000 ? `$${(n / 1e6).toFixed(2)}M` : `$${(n / 1000).toFixed(0)}K`;
 
   useEffect(() => {
     return () => {
@@ -124,7 +157,7 @@ export function RecommendationSection({ compact, variant = 'full' }: Recommendat
             )}
           </motion.button>
         </div>
-        <p className="text-purple-300/70 text-xs">$575K est. · +$940K value</p>
+        <p className="text-purple-300/70 text-xs">{fmtCompact(totalCost)} est. · +{fmtCompact(totalValueAdded)} value</p>
         {isGenerating &&
           createPortal(
             <div className="fixed inset-0 flex flex-col items-center justify-center bg-[#0a0612] text-white z-[2147483647]" aria-live="polite" aria-busy="true">
@@ -182,15 +215,16 @@ export function RecommendationSection({ compact, variant = 'full' }: Recommendat
             transition={{ delay: 0.1 }}
             className="rounded-2xl border border-pink-500/40 bg-gradient-to-b from-white/15 to-white/5 backdrop-blur-md p-6 flex flex-col relative overflow-hidden"
           >
+            <div className="absolute top-0 left-0 bg-gradient-to-br from-amber-400 to-orange-500 text-white text-xs font-black px-3 py-1.5 rounded-br-xl shadow-lg shadow-orange-500/30">$8,000 Value!</div>
             <div className="absolute top-0 right-0 bg-pink-500 text-white text-xs font-bold px-3 py-1.5 rounded-bl-xl">Recommended</div>
-            <div className="w-12 h-12 rounded-xl bg-pink-500/20 border border-pink-500/30 flex items-center justify-center mb-4">
+            <div className="w-12 h-12 rounded-xl bg-pink-500/20 border border-pink-500/30 flex items-center justify-center mb-4 mt-2">
               <Sparkles className="text-pink-400" size={24} />
             </div>
             <h3 className="text-lg font-bold text-white mb-2">Unlock your 3D design package</h3>
-            <p className="text-purple-300/80 text-sm mb-4 flex-grow">See your renovated home before breaking ground. 3D renders, plans, and contractor-ready specs.</p>
+            <p className="text-purple-300/80 text-sm mb-4 flex-grow">See your renovated home before breaking ground. 3D renders, color elevations, floor plans — printed and mailed to your door.</p>
             <div className="flex items-center justify-between text-sm mb-3">
-              <span className="text-pink-400 font-bold">$500 deposit</span>
-              <span className="text-purple-400 text-xs">Applied to project</span>
+              <span className="text-pink-400 font-bold">${CAD_PACKAGE_PRICE} design package</span>
+              <span className="text-purple-400 text-xs">$5K–$8K from a US firm</span>
             </div>
             <motion.button
               onClick={handleSeeIn3D}
@@ -206,17 +240,17 @@ export function RecommendationSection({ compact, variant = 'full' }: Recommendat
         <div className="flex flex-wrap items-center justify-center gap-6 sm:gap-8 py-4 px-4 rounded-xl bg-white/5 border border-white/10">
           <div className="text-center">
             <p className="text-purple-400 text-xs uppercase tracking-wider">Est. cost</p>
-            <p className="font-bold text-white text-lg">$575K</p>
+            <p className="font-bold text-white text-lg">{fmtCompact(totalCost)}</p>
           </div>
           <div className="w-px h-10 bg-white/20 hidden sm:block" />
           <div className="text-center">
             <p className="text-purple-400 text-xs uppercase tracking-wider">New value</p>
-            <p className="font-bold text-emerald-400 text-lg">$3.64M</p>
+            <p className="font-bold text-emerald-400 text-lg">{fmtCompact(postRenovationValue)}</p>
           </div>
           <div className="w-px h-10 bg-white/20 hidden sm:block" />
           <div className="text-center">
             <p className="text-purple-400 text-xs uppercase tracking-wider">Monthly</p>
-            <p className="font-bold text-white text-lg">$3,850</p>
+            <p className="font-bold text-white text-lg">${blendedPayment.toLocaleString()}</p>
           </div>
         </div>
         {isGenerating &&
@@ -264,25 +298,25 @@ export function RecommendationSection({ compact, variant = 'full' }: Recommendat
           <div className="flex flex-wrap items-center justify-center gap-6 sm:gap-8 py-4 px-4 rounded-xl bg-white/5 border border-white/10">
             <div className="text-center">
               <p className="text-purple-400 text-xs uppercase tracking-wider mb-0.5">Est. cost</p>
-              <p className="font-bold text-white">$575K</p>
+              <p className="font-bold text-white">{fmtCompact(totalCost)}</p>
             </div>
             <div className="w-px h-10 bg-white/20 hidden sm:block" />
             <div className="text-center">
               <p className="text-purple-400 text-xs uppercase tracking-wider mb-0.5">New value</p>
-              <p className="font-bold text-emerald-400">$3.64M</p>
+              <p className="font-bold text-emerald-400">{fmtCompact(postRenovationValue)}</p>
             </div>
             <div className="w-px h-10 bg-white/20 hidden sm:block" />
             <div className="text-center">
               <p className="text-purple-400 text-xs uppercase tracking-wider mb-0.5">Monthly</p>
-              <p className="font-bold text-white">$3,850</p>
+              <p className="font-bold text-white">${blendedPayment.toLocaleString()}</p>
             </div>
           </div>
 
           {/* Key metrics — compact row */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             {[
-              { icon: Wallet, label: 'Est. Cost', value: '$575K', color: 'text-white' },
-              { icon: TrendingUp, label: 'Value Created', value: '+$940K', color: 'text-emerald-400' },
+              { icon: Wallet, label: 'Est. Cost', value: fmtCompact(totalCost), color: 'text-white' },
+              { icon: TrendingUp, label: 'Value Created', value: `+${fmtCompact(totalValueAdded)}`, color: 'text-emerald-400' },
               { icon: FileText, label: 'Plan Type', value: 'CAD-Ready', color: 'text-purple-300' },
               { icon: Clock, label: 'Build Time', value: '6 Months', color: 'text-blue-300' },
             ].map((item, idx) => {
@@ -343,19 +377,20 @@ export function RecommendationSection({ compact, variant = 'full' }: Recommendat
           transition={{ delay: 0.3 }}
           className="bg-gradient-to-b from-white/15 to-white/5 backdrop-blur-md rounded-2xl border border-pink-500/40 p-6 flex flex-col relative overflow-hidden"
         >
+          <div className="absolute top-0 left-0 bg-gradient-to-br from-amber-400 to-orange-500 text-white text-xs font-black px-3 py-1.5 rounded-br-xl shadow-lg shadow-orange-500/30">$8,000 Value!</div>
           <div className="absolute top-0 right-0 bg-pink-500 text-white text-xs font-bold px-3 py-1 rounded-bl-xl">
             RECOMMENDED
           </div>
-          <div className="w-12 h-12 rounded-xl bg-pink-500/20 border border-pink-500/30 flex items-center justify-center mb-4">
+          <div className="w-12 h-12 rounded-xl bg-pink-500/20 border border-pink-500/30 flex items-center justify-center mb-4 mt-2">
             <Sparkles className="text-pink-400" size={24} />
           </div>
           <h3 className="text-xl font-bold text-white mb-2">Unlock Your 3D Design Package</h3>
           <p className="text-purple-300/80 text-sm mb-4 flex-grow">
-            See your renovated home before breaking ground. Includes 3D renders, architectural plans, and contractor-ready specifications.
+            See your renovated home before breaking ground. 3D renders, color elevations, floor plans — printed and mailed to your door.
           </p>
           <div className="mb-4 flex items-center justify-between">
-            <span className="text-pink-400 text-sm font-bold">$500 Deposit</span>
-            <span className="text-xs text-purple-400">Applied to project</span>
+            <span className="text-pink-400 text-sm font-bold">${CAD_PACKAGE_PRICE} Design Package</span>
+            <span className="text-xs text-purple-400">$5K–$8K from a US firm</span>
           </div>
           <motion.button
             onClick={handleSeeIn3D}
