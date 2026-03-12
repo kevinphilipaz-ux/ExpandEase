@@ -8,17 +8,30 @@ const app = express();
 app.use(cors({ origin: true }));
 app.use(express.json());
 
-const openai = process.env.OPENAI_API_KEY
-  ? new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
+// Venice AI is OpenAI-compatible — just swap the baseURL and key.
+// Falls back to OpenAI if VENICE_API_KEY is not set.
+const VENICE_KEY = process.env.VENICE_API_KEY;
+const OPENAI_KEY = process.env.OPENAI_API_KEY;
+
+const client = VENICE_KEY
+  ? new OpenAI({
+      apiKey: VENICE_KEY,
+      baseURL: 'https://api.venice.ai/api/v1',
+    })
+  : OPENAI_KEY
+  ? new OpenAI({ apiKey: OPENAI_KEY })
   : null;
 
-const CHAT_MODEL = process.env.CHAT_MODEL || 'gpt-4o-mini';
+// Venice model — use a capable instruction model. Swap to 'llama-3.1-405b' for max quality.
+const CHAT_MODEL = process.env.CHAT_MODEL || (VENICE_KEY ? 'llama-3.3-70b' : 'gpt-4o-mini');
+
+const provider = VENICE_KEY ? 'Venice AI' : OPENAI_KEY ? 'OpenAI' : null;
 
 app.post('/api/chat', async (req, res) => {
-  if (!openai) {
+  if (!client) {
     return res.status(503).json({
       error: 'Chat not configured',
-      detail: 'Set OPENAI_API_KEY in the server .env to enable the Dream Home analyst.',
+      detail: 'Set VENICE_API_KEY (or OPENAI_API_KEY) in server/.env to enable the Dream Home analyst.',
     });
   }
 
@@ -34,7 +47,7 @@ app.post('/api/chat', async (req, res) => {
   const systemPrompt = buildSystemPrompt(projectSummaryJson);
 
   try {
-    const completion = await openai.chat.completions.create({
+    const completion = await client.chat.completions.create({
       model: CHAT_MODEL,
       messages: [
         { role: 'system', content: systemPrompt },
@@ -60,7 +73,9 @@ app.post('/api/chat', async (req, res) => {
 const port = process.env.PORT || 3001;
 app.listen(port, () => {
   console.log(`Chat server listening on http://localhost:${port}`);
-  if (!process.env.OPENAI_API_KEY) {
-    console.warn('OPENAI_API_KEY not set — POST /api/chat will return 503 until you add it.');
+  if (provider) {
+    console.log(`Using ${provider} — model: ${CHAT_MODEL}`);
+  } else {
+    console.warn('No AI key set — POST /api/chat will return 503. Add VENICE_API_KEY to server/.env');
   }
 });

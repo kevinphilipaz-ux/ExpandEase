@@ -8,11 +8,10 @@ import { sendChat, type ChatMessage } from '../services/chatApi';
 const WELCOME_MESSAGE: ChatMessage = {
   role: 'assistant',
   content:
-    "The most intelligent home renovation analyst ever created—with full context on your project, our calculations, and your numbers. I'm here to answer your questions and advise you on your future dream home. What would you like to know?",
+    "Hi, I'm Aria — your ExpandEase renovation analyst. I have your property, your wishlist, and your financial inputs in context. Ask me anything: how your numbers were calculated, which upgrades have the best ROI, what you can realistically afford, or general renovation advice. What would you like to know?",
 };
 
-const ANALYZING_MESSAGE =
-  "I'm reviewing the structure of your renovation so far and pulling together everything I need to give you the best answer possible.";
+const ANALYZING_MESSAGE = "Reviewing your project data and running the numbers…";
 
 export function ChatBanner() {
   const projectCtx = useProjectOptional();
@@ -79,14 +78,17 @@ export function ChatBanner() {
         <div className="flex items-center justify-between p-3 border-b border-white/15 shrink-0 bg-black/20">
           <div className="flex items-center gap-2.5">
             <MessageSquare className="text-pink-300 shrink-0" size={18} />
-            <h3 className="font-semibold text-white tracking-tight">Dream Home Analyst</h3>
-            <span className="flex items-center gap-1.5 text-xs font-medium text-red-400/90">
+            <div>
+              <h3 className="font-semibold text-white tracking-tight leading-none">Aria</h3>
+              <p className="text-purple-400/70 text-[10px] leading-none mt-0.5">Renovation analyst</p>
+            </div>
+            <span className="flex items-center gap-1.5 text-xs font-medium text-emerald-400/90 ml-0.5">
               <span
                 className="relative flex h-2 w-2"
                 aria-hidden
               >
-                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-400 opacity-75" />
-                <span className="relative inline-flex h-2 w-2 rounded-full bg-red-500" />
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+                <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
               </span>
               <span>Live</span>
             </span>
@@ -104,7 +106,7 @@ export function ChatBanner() {
           {displayMessages.map((msg, i) => (
             <div
               key={i}
-              className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
+              className={`flex flex-col ${msg.role === 'user' ? 'items-end' : 'items-start'}`}
             >
               <div
                 className={`max-w-[85%] rounded-xl px-3.5 py-2.5 text-sm shadow-lg ${
@@ -115,6 +117,11 @@ export function ChatBanner() {
               >
                 <p className="whitespace-pre-wrap">{msg.content}</p>
               </div>
+              {msg.role === 'assistant' && (
+                <p className="text-[10px] text-purple-500/50 mt-1 pl-1 tracking-wide">
+                  ✦ live project data · renovation &amp; finance analyst
+                </p>
+              )}
             </div>
           ))}
           {loading && (
@@ -135,7 +142,7 @@ export function ChatBanner() {
             </div>
           )}
           {error && (
-            <p className="text-amber-300 text-xs">Chat couldn’t load. Check that the chat server is running and OPENAI_API_KEY is set.</p>
+            <p className="text-amber-300 text-xs">Couldn’t reach the chat. Check your internet connection and try again.</p>
           )}
           <div ref={messagesEndRef} />
         </div>
@@ -175,7 +182,7 @@ export function ChatBanner() {
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
       className={`fixed bottom-4 right-4 z-50 safe-area-bottom safe-area-right bg-gradient-to-r from-purple-600 to-pink-600 rounded-full shadow-lg min-w-[52px] min-h-[52px] flex items-center justify-center cursor-pointer overflow-hidden transition-[width] duration-300 ${isHovered ? 'w-56' : 'w-[52px]'} h-[52px]`}
-      aria-label={isHovered ? "Let's talk about options — click to open chat" : 'Open chat'}
+      aria-label={isHovered ? 'Talk to Aria — renovation analyst' : 'Open Aria'}
       animate={isHovered ? {} : { opacity: [1, 0.88, 1] }}
       transition={
         isHovered ? { duration: 0 } : { duration: 2.2, repeat: Infinity, ease: 'easeInOut' }
@@ -187,7 +194,7 @@ export function ChatBanner() {
           isHovered ? 'opacity-100' : 'opacity-0 w-0 overflow-hidden'
         }`}
       >
-        Let's talk about options
+        Talk to Aria
       </span>
     </motion.button>
   );

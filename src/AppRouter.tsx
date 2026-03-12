@@ -40,7 +40,7 @@ export function AppRouter() {
     <OnboardingProvider>
       <AuthProvider>
       <ProjectProviderWrapper>
-      <BrowserRouter>
+      <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
         <DocumentTitle />
         <Routes>
           <Route path="/" element={<LandingPage />} />

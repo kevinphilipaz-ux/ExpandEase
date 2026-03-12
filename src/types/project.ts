@@ -9,6 +9,10 @@ export type RoomStatus = 'add' | 'renovate' | 'leave';
 export interface RoomTile {
   id: string;
   status: RoomStatus;
+  /** Bath type — master, full, jack_and_jill, half */
+  bathType?: 'master' | 'full' | 'jack_and_jill' | 'half';
+  /** Per-bath quality override (defaults to global bathQuality) */
+  qualityOverride?: 'standard' | 'premium' | 'luxury';
 }
 
 /** Homeowner & contact — for contracts and partner handoff */
@@ -78,6 +82,8 @@ export interface ProjectWishlist {
   outdoorFeatures?: string[];
   /** Optional: HVAC, electrical, plumbing toggles */
   systemsDetails?: string[];
+  /** Global bathroom quality tier — Standard / Premium / Luxury */
+  bathQuality?: 'standard' | 'premium' | 'luxury';
 }
 
 /** Financial summary — for lender and feasibility */

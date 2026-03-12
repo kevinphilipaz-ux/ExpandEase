@@ -1,4 +1,4 @@
-import React, { useState, useCallback, createContext, useContext, useEffect } from 'react';
+import React, { useState, useCallback, useMemo, createContext, useContext, useEffect } from 'react';
 import {
   Project,
   createEmptyProject,
@@ -115,8 +115,12 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
     [user?.id, isSupabase]
   );
 
+  const value = useMemo(
+    () => ({ project, updateProject, setProject }),
+    [project, updateProject, setProject]
+  );
   return (
-    <ProjectContext.Provider value={{ project, updateProject, setProject }}>
+    <ProjectContext.Provider value={value}>
       {children}
     </ProjectContext.Provider>
   );

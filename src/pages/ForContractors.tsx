@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import { supabase } from '../lib/supabase';
 import { Home, CheckCircle, XCircle, ArrowRight, DollarSign, FileText, Shield, Star, ChevronDown, ChevronUp, BookOpen, CalendarCheck, MessageSquare, Zap, Target, FileCheck } from 'lucide-react';
 
 const STATS = [
@@ -101,18 +102,33 @@ export function ForContractors() {
     setForm(f => ({ ...f, areas: f.areas.includes(area) ? f.areas.filter(a => a !== area) : [...f.areas, area] }));
   };
 
+  const [submitError, setSubmitError] = useState<string | null>(null);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitting(true);
-    try {
-      // TODO: Replace with your real Formspree form ID before go-live so contractor applications are received.
-      await fetch('https://formspree.io/f/REPLACE_WITH_FORM_ID', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...form, areas: form.areas.join(', '), _subject: 'Contractor Application — ExpandEase' }),
-      });
-    } catch (_) { /* graceful */ }
+    setSubmitError(null);
+    if (!supabase) {
+      setSubmitError('Something went wrong. Please email us directly at hello@expandease.com');
+      setSubmitting(false);
+      return;
+    }
+    const { error } = await supabase.from('leads').insert({
+      lead_type: 'contractor',
+      name: form.name,
+      email: form.email,
+      phone: form.phone || null,
+      company: form.company || null,
+      license: form.license || null,
+      years: form.years || null,
+      service_areas: form.areas.length > 0 ? form.areas : null,
+    });
     setSubmitting(false);
-    setSubmitted(true);
+    if (error) {
+      setSubmitError('Something went wrong. Please email us directly at hello@expandease.com');
+    } else {
+      setSubmitted(true);
+    }
   };
 
   return (
@@ -434,6 +450,9 @@ export function ForContractors() {
                 className="w-full py-4 rounded-xl bg-gradient-to-r from-pink-600 to-purple-600 font-bold text-lg hover:opacity-90 transition-opacity disabled:opacity-50">
                 {submitting ? 'Submitting...' : 'Apply to Join the Network →'}
               </button>
+              {submitError && (
+                <p className="text-red-400 text-sm text-center mt-2">{submitError}</p>
+              )}
             </form>
           )}
         </div>

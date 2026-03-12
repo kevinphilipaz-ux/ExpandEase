@@ -1,4 +1,4 @@
-import React, { useState, createContext, useContext, type ReactNode } from 'react';
+import React, { useState, useCallback, useMemo, createContext, useContext, type ReactNode } from 'react';
 export interface OnboardingData {
   /** User's first name for personalization (e.g. tab title, greetings). Demo default: Kevin */
   firstName: string;
@@ -27,18 +27,15 @@ const OnboardingContext = createContext<OnboardingContextType | undefined>(
 );
 export function OnboardingProvider({ children }: { children: ReactNode }) {
   const [data, setData] = useState<OnboardingData>(defaultData);
-  const updateData = (updates: Partial<OnboardingData>) => {
+  const updateData = useCallback((updates: Partial<OnboardingData>) => {
     setData((prev) => ({
       ...prev,
       ...updates
     }));
-  };
+  }, []);
+  const value = useMemo(() => ({ data, updateData }), [data, updateData]);
   return (
-    <OnboardingContext.Provider
-      value={{
-        data,
-        updateData
-      }}>
+    <OnboardingContext.Provider value={value}>
 
       {children}
     </OnboardingContext.Provider>);

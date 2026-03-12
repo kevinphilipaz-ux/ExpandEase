@@ -7,6 +7,7 @@ import { CADCheckoutModal } from '../components/CADCheckoutModal';
 import { AuthUI } from '../components/AuthUI';
 import { ValueWithPop } from '../components/ui/ValueWithPop';
 import { useMilestoneConfetti } from '../hooks/useMilestoneConfetti';
+import { ItemizedBill } from '../components/feasibility/ItemizedBill';
 import {
   Download,
   Share2,
@@ -600,6 +601,18 @@ export function DesignPackage() {
                 </button>
               </div>
             </div>
+          </div>
+        </motion.section>
+
+        {/* --- Itemized Cost Breakdown --- */}
+        <motion.section
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.55 }}
+          className="mb-8"
+        >
+          <div className="bg-white/5 backdrop-blur-md rounded-2xl border border-white/10 p-5 md:p-6">
+            <ItemizedBill />
           </div>
         </motion.section>
 

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, Component } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Home,
@@ -36,6 +36,50 @@ interface SectionProgress {
   wishlist: number;
   financial: number;
   feasibility: number;
+}
+
+/** Catches section render errors so we show a fallback instead of a blank screen. */
+class SectionErrorBoundary extends Component<
+  { children: React.ReactNode; sectionKey: string; onBack: () => void },
+  { error: Error | null }
+> {
+  state = { error: null as Error | null };
+
+  static getDerivedStateFromError(error: Error) {
+    return { error };
+  }
+
+  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
+    console.error('[SectionErrorBoundary] Section failed to load:', error, errorInfo.componentStack);
+  }
+
+  componentDidUpdate(prevProps: { sectionKey: string }) {
+    if (prevProps.sectionKey !== this.props.sectionKey && this.state.error) {
+      this.setState({ error: null });
+    }
+  }
+
+  render() {
+    if (this.state.error) {
+      return (
+        <div className="rounded-2xl border border-white/20 bg-white/10 backdrop-blur-md p-8 text-center">
+          <p className="text-white font-medium mb-2">Something went wrong loading this section.</p>
+          <p className="text-purple-200/80 text-sm mb-4">You can go back and try again.</p>
+          <button
+            type="button"
+            onClick={() => {
+              this.setState({ error: null });
+              this.props.onBack();
+            }}
+            className="px-4 py-2 rounded-xl bg-white/20 hover:bg-white/30 text-white text-sm font-medium transition-colors"
+          >
+            Go back
+          </button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
 }
 
 export function App() {
@@ -224,7 +268,9 @@ export function App() {
               const Icon = section.icon;
               const isActive = activeSection === section.id;
               const isCompleted = section.progress >= 100;
-              const isLocked = idx > 0 && sections[idx - 1].progress < 50;
+              // Only lock *future* sections whose previous section isn't far enough along.
+              // Once you've reached a section (or any earlier one), you can always navigate back to it.
+              const isLocked = idx > currentSectionIndex && idx > 0 && sections[idx - 1].progress < 50;
               const isNextSection = idx === currentSectionIndex + 1;
 
               return (
@@ -273,43 +319,55 @@ export function App() {
             transition={{ duration: 0.2 }}
             className="space-y-8"
           >
-            {sections.map((section) => {
-              const Component = section.component;
-              if (section.id !== activeSection) return null;
-              if (section.id === 'feasibility') {
-                return (
-                  <div key={section.id} className="space-y-10" id="your-decision">
-                    <RecommendationSection variant="dashboard" />
+            <SectionErrorBoundary
+              sectionKey={activeSection}
+              onBack={() => {
+                const prevIndex = Math.max(0, currentSectionIndex - 1);
+                setActiveSection(sections[prevIndex].id);
+              }}
+            >
+              {(() => {
+                const section = sections.find((s) => s.id === activeSection);
+                if (!section) return null;
+                const Component = section.component;
+                const nextSection = sections[currentSectionIndex + 1];
+                if (section.id === 'feasibility') {
+                  return (
+                    <div key={section.id} className="space-y-10" id="your-decision">
+                      <RecommendationSection variant="dashboard" />
+                      <Component
+                        onProgressUpdate={(value: number) => handleProgressUpdate(section.id as keyof SectionProgress, value)}
+                        isActive={true}
+                        onNavigateTo={(sectionId: string) => setActiveSection(sectionId)}
+                      />
+                    </div>
+                  );
+                }
+                if (section.id === 'wishlist') {
+                  return (
                     <Component
+                      key={section.id}
                       onProgressUpdate={(value: number) => handleProgressUpdate(section.id as keyof SectionProgress, value)}
                       isActive={true}
-                      onNavigateTo={(sectionId: string) => setActiveSection(sectionId)}
+                      initialBedrooms={project?.property?.beds}
+                      initialBathrooms={project?.property?.baths}
+                      onFinishWishlist={nextSection ? () => setActiveSection(nextSection.id) : undefined}
+                      nextSectionLabel={nextSection?.label ?? 'Analysis'}
                     />
-                  </div>
-                );
-              }
-              if (section.id === 'wishlist') {
-                const nextSection = sections[currentSectionIndex + 1];
+                  );
+                }
                 return (
                   <Component
                     key={section.id}
                     onProgressUpdate={(value: number) => handleProgressUpdate(section.id as keyof SectionProgress, value)}
                     isActive={true}
-                    initialBedrooms={project?.property?.beds}
-                    initialBathrooms={project?.property?.baths}
-                    onFinishWishlist={nextSection ? () => setActiveSection(nextSection.id) : undefined}
-                    nextSectionLabel={nextSection?.label ?? 'Analysis'}
+                    {...(section.id === 'property' && nextSection && {
+                      onNextSection: () => setActiveSection(nextSection.id),
+                    })}
                   />
                 );
-              }
-              return (
-                <Component
-                  key={section.id}
-                  onProgressUpdate={(value: number) => handleProgressUpdate(section.id as keyof SectionProgress, value)}
-                  isActive={true}
-                />
-              );
-            })}
+              })()}
+            </SectionErrorBoundary>
           </motion.div>
         </AnimatePresence>
 
@@ -350,7 +408,7 @@ export function App() {
           </div>
 
           {activeSection === 'wishlist' ? (
-            <span className="text-purple-300/50 text-xs order-3">Continue with the button above</span>
+            <span className="text-purple-300/50 text-xs order-3">Complete your selections above, then use Next Section</span>
           ) : currentSectionIndex < sections.length - 1 ? (
             <motion.button
               type="button"

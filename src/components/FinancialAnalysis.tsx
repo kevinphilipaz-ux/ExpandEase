@@ -39,7 +39,11 @@ import {
   ArrowRight,
   Maximize2,
   X,
+  ChevronDown,
+  ChevronUp,
 } from 'lucide-react';
+
+const MOBILE_SCOPE_PEEK = 3;
 
 interface FinancialAnalysisProps {
   onProgressUpdate?: (value: number) => void;
@@ -109,6 +113,7 @@ export function FinancialAnalysis({ onProgressUpdate }: FinancialAnalysisProps) 
   const [existingMortgageBalance, setExistingMortgageBalance] = useState<number | ''>(fin?.existingMortgageBalance ?? '');
   const [paymentSlider, setPaymentSlider] = useState(fin?.paymentSlider ?? 0); // extra $/month user is willing to consider
   const [everyItemFullViewOpen, setEveryItemFullViewOpen] = useState(false);
+  const [scopeExpandedMobile, setScopeExpandedMobile] = useState(false);
 
   useEffect(() => {
     onProgressUpdate?.(100);
@@ -387,7 +392,44 @@ export function FinancialAnalysis({ onProgressUpdate }: FinancialAnalysisProps) 
           <p className="text-emerald-300/70 text-xs mb-3">
             Your plan includes the scope below — each item adds real value to your home and lifestyle.
           </p>
-          <ul className="flex flex-wrap gap-2">
+          {/* Mobile: compact list with progressive disclosure */}
+          <div className="md:hidden space-y-2">
+            <ul className="flex flex-col gap-2">
+              {(scopeExpandedMobile ? enabledItems : enabledItems.slice(0, MOBILE_SCOPE_PEEK)).map((i) => (
+                <li
+                  key={i.id}
+                  className="inline-flex items-start gap-1.5 px-3 py-2 rounded-lg bg-white/10 text-emerald-100 min-w-0"
+                >
+                  <CheckCircle2 size={14} className="text-emerald-400 shrink-0 mt-0.5" />
+                  <span className="text-sm">
+                    <span className="font-medium">{i.amenity ?? i.label}</span>
+                    {i.benefit != null && i.benefit !== '' && <span className="block text-emerald-200/80 text-xs mt-0.5">{i.benefit}</span>}
+                  </span>
+                </li>
+              ))}
+            </ul>
+            {enabledItems.length > MOBILE_SCOPE_PEEK && (
+              <button
+                type="button"
+                onClick={() => setScopeExpandedMobile((v) => !v)}
+                className="flex items-center justify-center gap-1.5 w-full py-2.5 rounded-lg bg-white/10 hover:bg-white/15 border border-white/20 text-emerald-200 text-sm font-medium transition-colors"
+              >
+                {scopeExpandedMobile ? (
+                  <>
+                    <ChevronUp size={16} />
+                    Show less
+                  </>
+                ) : (
+                  <>
+                    <ChevronDown size={16} />
+                    Show {enabledItems.length - MOBILE_SCOPE_PEEK} more
+                  </>
+                )}
+              </button>
+            )}
+          </div>
+          {/* Desktop: full list */}
+          <ul className="hidden md:flex flex-wrap gap-2">
             {enabledItems.map((i) => (
               <li
                 key={i.id}

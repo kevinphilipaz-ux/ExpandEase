@@ -15,9 +15,11 @@ function formatPrice(val: number): string {
 interface PropertyOverviewProps {
   onProgressUpdate?: (value: number) => void;
   isActive?: boolean;
+  /** When provided, shows a top "Next Section" button (matches footer) so users can proceed without scrolling */
+  onNextSection?: () => void;
 }
 
-export function PropertyOverview({ onProgressUpdate }: PropertyOverviewProps) {
+export function PropertyOverview({ onProgressUpdate, onNextSection }: PropertyOverviewProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [showComps, setShowComps] = useState(false);
 
@@ -64,7 +66,7 @@ export function PropertyOverview({ onProgressUpdate }: PropertyOverviewProps) {
         },
       });
     }
-  }, [loading, subject.beds, subject.baths, projectCtx]);
+  }, [loading, subject.beds, subject.baths, projectCtx?.updateProject]);
 
   // Keep project in sync with the property currently displayed (avoids crossover when switching addresses)
   useEffect(() => {
@@ -79,7 +81,7 @@ export function PropertyOverview({ onProgressUpdate }: PropertyOverviewProps) {
         },
       });
     }
-  }, [loading, displayAddress, subject.value, subject.equity, subject.beds, projectCtx]);
+  }, [loading, displayAddress, subject.value, subject.equity, subject.beds, projectCtx?.updateProject]);
 
   // Persist property edits automatically whenever user changes beds, baths, sqft, year built, or pool
   useEffect(() => {
@@ -94,7 +96,7 @@ export function PropertyOverview({ onProgressUpdate }: PropertyOverviewProps) {
         pool: edits.pool,
       },
     });
-  }, [edits.beds, edits.baths, edits.sqft, edits.yearBuilt, edits.pool, projectCtx]);
+  }, [edits.beds, edits.baths, edits.sqft, edits.yearBuilt, edits.pool, projectCtx?.updateProject]);
 
   useEffect(() => {
     onProgressUpdate?.(100);
@@ -173,13 +175,25 @@ export function PropertyOverview({ onProgressUpdate }: PropertyOverviewProps) {
             )}
           </p>
         </div>
-        <button
-          onClick={() => setIsEditing(!isEditing)}
-          className="mt-2 sm:mt-0 flex items-center gap-2 px-4 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-white text-sm font-medium transition-all"
-        >
-          {isEditing ? <Check size={16} /> : <Edit2 size={16} />}
-          {isEditing ? 'Done' : 'Edit Details'}
-        </button>
+        <div className="flex flex-wrap items-center justify-center gap-2 mt-2 sm:mt-0">
+          {onNextSection && (
+            <button
+              type="button"
+              onClick={onNextSection}
+              className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-white text-purple-900 font-bold hover:bg-gray-100 transition-all animate-button-glow-2x"
+            >
+              Next Section
+              <ChevronRight size={18} />
+            </button>
+          )}
+          <button
+            onClick={() => setIsEditing(!isEditing)}
+            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-white text-sm font-medium transition-all"
+          >
+            {isEditing ? <Check size={16} /> : <Edit2 size={16} />}
+            {isEditing ? 'Done' : 'Edit Details'}
+          </button>
+        </div>
       </div>
 
       {/* Address Card */}
