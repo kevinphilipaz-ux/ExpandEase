@@ -3,6 +3,10 @@
  * and returns structured renovation preferences mapped to ExpandEase wishlist fields.
  */
 
+// Re-export MaterialDetail from the canonical project types
+export type { MaterialDetail } from '../types/project';
+import type { MaterialDetail } from '../types/project';
+
 const VENICE_BASE = 'https://api.venice.ai/api/v1';
 // Use a vision-capable model
 const VISION_MODEL = 'qwen-2.5-vl-7b-instruct';
@@ -11,21 +15,6 @@ const VENICE_KEY =
   typeof import.meta.env?.VITE_VENICE_API_KEY === 'string'
     ? import.meta.env.VITE_VENICE_API_KEY
     : '';
-
-export interface MaterialDetail {
-  /** Surface category — e.g. "Countertops", "Flooring", "Cabinets" */
-  category: string;
-  /** Specific material — e.g. "Calacatta quartz", "White oak hardwood" */
-  material: string;
-  /** Color / finish description — e.g. "White with grey veining", "Warm honey" */
-  color: string;
-  /** Budget range low end in dollars (typical 2,500 sq ft home) */
-  budgetLow: number;
-  /** Budget range high end in dollars */
-  budgetHigh: number;
-  /** Short human-readable label — e.g. "Calacatta quartz countertops" */
-  label: string;
-}
 
 export interface PinterestStyleResult {
   homeStyle: 'Modern' | 'Farmhouse' | 'Contemporary';

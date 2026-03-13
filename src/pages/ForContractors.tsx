@@ -1,7 +1,23 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
-import { Home, CheckCircle, XCircle, ArrowRight, DollarSign, FileText, Shield, Star, ChevronDown, ChevronUp, BookOpen, CalendarCheck, MessageSquare, Zap, Target, FileCheck } from 'lucide-react';
+import { Home, CheckCircle, XCircle, ArrowRight, DollarSign, FileText, Shield, Star, ChevronDown, ChevronUp, BookOpen, CalendarCheck, MessageSquare, Zap, Target, FileCheck, Stamp, Sparkles, Camera, Brain, Palette } from 'lucide-react';
+import { TableOfContents } from '../components/ui/TableOfContents';
+import type { TocItem } from '../components/ui/TableOfContents';
+
+const CONTRACTOR_TOC: TocItem[] = [
+  { id: 'contractor-hero', label: 'Overview' },
+  { id: 'contractor-stats', label: 'By the Numbers' },
+  { id: 'contractor-pipeline', label: 'The Pipeline' },
+  { id: 'contractor-quotes', label: 'What We\'ve Heard' },
+  { id: 'contractor-compare', label: 'Old vs New' },
+  { id: 'contractor-ai', label: 'AI + Permitting' },
+  { id: 'how-it-works', label: 'How It Works' },
+  { id: 'contractor-benefits', label: 'Benefits' },
+  { id: 'contractor-3d', label: '3D Advantage' },
+  { id: 'contractor-objections', label: 'Objections' },
+  { id: 'apply', label: 'Apply' },
+];
 
 const STATS = [
   { value: 'Pre-funded', label: 'Leads arrive with financing secured' },
@@ -133,6 +149,7 @@ export function ForContractors() {
 
   return (
     <div className="min-h-screen bg-[#0a0612] text-white">
+      <TableOfContents items={CONTRACTOR_TOC} accent="pink" />
       {/* Nav */}
       <nav className="sticky top-0 z-50 bg-[#0a0612]/80 backdrop-blur-xl border-b border-white/10">
         <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
@@ -149,23 +166,27 @@ export function ForContractors() {
       </nav>
 
       {/* Hero */}
-      <section className="relative py-32 px-4 overflow-hidden">
+      <section id="contractor-hero" className="relative py-32 px-4 overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-br from-purple-900/30 to-pink-900/10" />
         <div className="relative max-w-4xl mx-auto text-center">
-          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-purple-500/10 border border-purple-500/30 text-purple-300 text-sm font-medium mb-8">
-            For Licensed Contractors
+          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-sm font-medium mb-8">
+            <Sparkles size={14} /> The Future of Home Renovation Has Arrived
           </div>
           <h1 className="text-5xl md:text-7xl font-bold leading-tight mb-6">
-            The deal pipeline<br />
-            <span className="bg-gradient-to-r from-pink-400 to-purple-400 bg-clip-text text-transparent">you've always wanted.</span>
+            Stop chasing leads.<br />
+            <span className="bg-gradient-to-r from-pink-400 to-purple-400 bg-clip-text text-transparent">Build funded projects.</span>
           </h1>
+          <p className="text-gray-400 text-lg md:text-xl mb-8 max-w-2xl mx-auto">
+            ExpandEase is the first AI-powered platform that delivers fully funded, fully scoped, permit-ready renovation projects — directly to licensed contractors. No bidding wars. No scope creep. No payment fights. <span className="text-white font-medium">Ever.</span>
+          </p>
           <div className="max-w-xl mx-auto mb-10">
             <ul className="space-y-3 text-left">
               {[
                 'Pre-funded projects — $599 deposit and financing secured before you see the job',
-                'Complete SOW before you bid — apply your rates and margins in a 30-minute review',
-                'Digital milestone draws — no waiting on bank inspectors',
-                'You build with confidence.',
+                'AI-generated SOW with 21 trade packages — apply your rates in a 30-minute review',
+                'Integrated permitting — stamped plans, pre-filled applications, inspection scheduling',
+                'TurboMode™ scheduling — zero idle days, every trade sequenced by AI',
+                'Digital milestone draws — photo-verified, AI-confirmed, funds released in 48hrs',
               ].map((item, i) => (
                 <li key={i} className="flex items-start gap-3">
                   <CheckCircle size={18} className="text-emerald-400 mt-0.5 shrink-0" />
@@ -186,7 +207,7 @@ export function ForContractors() {
       </section>
 
       {/* Stats Strip */}
-      <section className="py-14 px-4 border-y border-white/10">
+      <section id="contractor-stats" className="py-14 px-4 border-y border-white/10">
         <div className="max-w-5xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
           {STATS.map(s => (
             <div key={s.label}>
@@ -198,7 +219,7 @@ export function ForContractors() {
       </section>
 
       {/* How we get you ready-to-build jobs */}
-      <section className="bg-gradient-to-b from-[#0a0612] to-purple-950/20 border-y border-white/10">
+      <section id="contractor-pipeline" className="bg-gradient-to-b from-[#0a0612] to-purple-950/20 border-y border-white/10">
         <div className="max-w-6xl mx-auto py-20 px-4">
           <div className="grid md:grid-cols-2 gap-12 md:gap-20 items-stretch">
             <div className="flex flex-col">
@@ -266,7 +287,7 @@ export function ForContractors() {
       </section>
 
       {/* What we've heard from contractors */}
-      <section className="py-10 px-4 bg-white/5 border-y border-white/10">
+      <section id="contractor-quotes" className="py-10 px-4 bg-white/5 border-y border-white/10">
         <div className="max-w-4xl mx-auto">
           <div className="flex items-center gap-3 justify-center mb-6">
             <MessageSquare size={22} className="text-pink-400" />
@@ -292,13 +313,14 @@ export function ForContractors() {
       </section>
 
       {/* Old Way vs New Way */}
-      <section className="py-20 px-4">
+      <section id="contractor-compare" className="py-20 px-4">
         <div className="max-w-5xl mx-auto">
-          <h2 className="text-3xl md:text-5xl font-bold text-center mb-12">Two ways to run your business.</h2>
+          <h2 className="text-3xl md:text-5xl font-bold text-center mb-4">Two ways to run your business.</h2>
+          <p className="text-center text-gray-400 max-w-2xl mx-auto mb-12">The industry hasn't changed in 40 years. We're changing it now.</p>
           <div className="grid md:grid-cols-2 gap-6">
             <div className="bg-gray-900/50 rounded-2xl p-8 border border-red-500/20">
               <div className="text-red-400 font-bold uppercase text-xs tracking-widest mb-4">The Old Way</div>
-              {['Cold outreach and referral chasing', 'Vague scopes, ballpark estimates', 'Scope creep erodes your margin', 'Payment fights at every milestone', '"But that\'s not what I meant" disputes after the fact', 'Trades double-booked, timelines blown'].map(item => (
+              {['Cold outreach and referral chasing', 'Vague scopes, ballpark estimates', 'Scope creep erodes your margin', 'Payment fights at every milestone', '"But that\'s not what I meant" disputes after the fact', 'Trades double-booked, timelines blown', 'Permitting is your headache — find the forms yourself', 'No visibility into project health until it\'s too late'].map(item => (
                 <div key={item} className="flex items-start gap-3 py-3 border-b border-white/5 last:border-0">
                   <XCircle size={16} className="text-red-500 mt-0.5 shrink-0" />
                   <span className="text-gray-300 text-sm">{item}</span>
@@ -307,13 +329,44 @@ export function ForContractors() {
             </div>
             <div className="bg-gradient-to-b from-purple-900/40 to-pink-900/20 rounded-2xl p-8 border border-pink-500/30">
               <div className="text-pink-400 font-bold uppercase text-xs tracking-widest mb-4">The ExpandEase Way</div>
-              {['Inbound leads — homeowners come to you', 'Fixed-price contracts with complete SOW', 'SOW is the rule giver — signed, clear, enforced', 'Change orders locked before work continues', 'Milestone payments released automatically', 'Trades committed to a timeline before day one'].map(item => (
+              {['Inbound leads — homeowners come to you pre-funded', 'AI-generated SOW with 21 trade packages and material specs', 'SOW is the rule giver — signed, clear, enforced', 'Change orders locked and funded before work continues', 'Photo-verified milestone payments — AI confirms completion', 'TurboMode™ scheduling — zero idle days, every trade sequenced', 'Integrated permitting — stamped plans, pre-filled apps, inspections scheduled', 'Aria AI companion monitors project health in real time'].map(item => (
                 <div key={item} className="flex items-start gap-3 py-3 border-b border-white/5 last:border-0">
                   <CheckCircle size={16} className="text-emerald-400 mt-0.5 shrink-0" />
                   <span className="text-gray-200 text-sm">{item}</span>
                 </div>
               ))}
             </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ── AI + Permitting Platform Section ── */}
+      <section id="contractor-ai" className="py-20 px-4 bg-gradient-to-b from-purple-950/30 to-[#0a0612]">
+        <div className="max-w-6xl mx-auto">
+          <div className="text-center mb-14">
+            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-sm font-medium mb-6">
+              <Brain size={14} /> AI-Powered Construction Intelligence
+            </div>
+            <h2 className="text-3xl md:text-5xl font-bold mb-4">Every tool a modern GC needs. <span className="bg-gradient-to-r from-emerald-400 to-cyan-400 bg-clip-text text-transparent">Built in.</span></h2>
+            <p className="text-gray-400 max-w-2xl mx-auto text-lg">We didn't just digitize the old process — we rebuilt it from the ground up with AI, integrated permitting, and real-time project intelligence.</p>
+          </div>
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {[
+              { icon: Sparkles, color: 'violet', title: 'Aria AI Companion', desc: 'Your AI project manager. Aria flags permit issues before submission, auto-generates inspection checklists from AHJ requirements, and monitors project health so you catch problems before they become change orders.' },
+              { icon: Zap, color: 'amber', title: 'TurboMode™ Scheduling', desc: 'AI-optimized Gantt scheduling ensures zero idle days. Every trade is sequenced so the next crew arrives the moment the previous one finishes. Drag-and-drop rescheduling with automatic conflict detection.' },
+              { icon: Stamp, color: 'emerald', title: 'Integrated Permitting', desc: 'Plans stamped by licensed PEs, permit applications pre-filled from SOW data, and every required inspection auto-sequenced into your Gantt timeline. No more paper chasing.' },
+              { icon: Camera, color: 'pink', title: 'Photo-Verified Milestones', desc: 'Upload geo-tagged site photos at each milestone. Aria AI verifies work completion against the SOW specifications before releasing the next payment tranche. Disputes eliminated.' },
+              { icon: Palette, color: 'cyan', title: 'Pinterest-to-Spec Pipeline', desc: 'Homeowners bring Pinterest inspiration boards. Our AI converts aesthetic preferences into exact material specs, finish selections, and manufacturer SKUs — all locked before you bid.' },
+              { icon: Shield, color: 'blue', title: 'Golden Record SOW', desc: 'The most detailed homeowner-generated SOW a contractor will ever see. 21 trade packages, every material spec, every sub-component. This is your shield against scope creep and disputes.' },
+            ].map((card, i) => (
+              <div key={i} className={`bg-white/5 rounded-2xl p-6 border border-${card.color}-500/20 hover:border-${card.color}-500/40 transition-colors`}>
+                <div className={`w-12 h-12 rounded-xl bg-${card.color}-500/10 border border-${card.color}-500/30 flex items-center justify-center mb-4`}>
+                  <card.icon size={22} className={`text-${card.color}-400`} />
+                </div>
+                <h3 className="text-lg font-bold mb-2">{card.title}</h3>
+                <p className="text-gray-400 leading-relaxed text-sm">{card.desc}</p>
+              </div>
+            ))}
           </div>
         </div>
       </section>
@@ -340,7 +393,7 @@ export function ForContractors() {
       </section>
 
       {/* Benefits */}
-      <section className="py-20 px-4">
+      <section id="contractor-benefits" className="py-20 px-4">
         <div className="max-w-5xl mx-auto">
           <h2 className="text-3xl md:text-5xl font-bold text-center mb-4">Why contractors choose ExpandEase.</h2>
           <p className="text-center text-gray-400 max-w-2xl mx-auto mb-12">More leads. Fewer disputes. Higher project success and homeowner satisfaction. Get paid on time, every time.</p>
@@ -362,17 +415,20 @@ export function ForContractors() {
       </section>
 
       {/* The 3D Advantage */}
-      <section className="py-20 px-4">
+      <section id="contractor-3d" className="py-20 px-4">
         <div className="max-w-4xl mx-auto text-center">
-          <h2 className="text-3xl md:text-5xl font-bold mb-6">Eliminate the &quot;I can&apos;t picture it&quot; problem.</h2>
-          <p className="text-gray-400 leading-relaxed text-lg">
-            Contractors lose thousands of dollars in wasted time when a homeowner changes their mind halfway through a build because they &quot;couldn&apos;t visualize&quot; the 2D floor plans. ExpandEase solves this before you ever break ground. The homeowner explores their exact renovation in a high-fidelity 3D environment during our curation phase. By the time you start building, all design anxiety is gone, selections are locked, and your schedule is protected.
+          <h2 className="text-3xl md:text-5xl font-bold mb-6">Eliminate the &quot;I can&apos;t picture it&quot; problem. <span className="bg-gradient-to-r from-pink-400 to-purple-400 bg-clip-text text-transparent">Forever.</span></h2>
+          <p className="text-gray-400 leading-relaxed text-lg mb-6">
+            Contractors lose thousands of dollars in wasted time when a homeowner changes their mind halfway through a build because they &quot;couldn&apos;t visualize&quot; the 2D floor plans. ExpandEase solves this before you ever break ground. The homeowner explores their exact renovation in a high-fidelity 3D environment during our curation phase — guided by Aria, our AI companion, who translates Pinterest boards into buildable specs.
+          </p>
+          <p className="text-gray-300 leading-relaxed text-lg font-medium">
+            By the time you start building, design anxiety is gone, selections are locked in writing, permits are pre-filed, and your schedule is protected. <span className="text-pink-400">This is what the future of renovation looks like.</span>
           </p>
         </div>
       </section>
 
       {/* Objection Crushers */}
-      <section className="py-20 px-4 bg-purple-950/20">
+      <section id="contractor-objections" className="py-20 px-4 bg-purple-950/20">
         <div className="max-w-6xl mx-auto">
           <h2 className="text-3xl md:text-4xl font-bold text-center mb-4">We've heard the objections.</h2>
           <p className="text-center text-gray-400 mb-12">Straight answers. No spin.</p>
@@ -405,8 +461,8 @@ export function ForContractors() {
       <section id="apply" className="py-20 px-4">
         <div className="max-w-2xl mx-auto">
           <div className="text-center mb-12">
-            <h2 className="text-3xl md:text-5xl font-bold mb-4">Apply to join the network.</h2>
-            <p className="text-gray-400">We review every application. Expect to hear from us within 48 hours.</p>
+            <h2 className="text-3xl md:text-5xl font-bold mb-4">Join the contractors building the future.</h2>
+            <p className="text-gray-400 max-w-lg mx-auto">The renovation industry is being rebuilt from the ground up. Early partners get priority placement, AI-powered project intelligence, and a pipeline of fully funded, permit-ready projects. We review every application within 48 hours.</p>
           </div>
           {submitted ? (
             <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-2xl p-12 text-center">

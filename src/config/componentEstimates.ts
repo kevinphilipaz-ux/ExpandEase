@@ -2,11 +2,24 @@
  * Single source of truth for feature/component costs and ROI.
  * Used by PropertyWishlist (display + calculate), TinderMode (swipe cards),
  * and itemizedCosts (ItemizedBill breakdown).
+ *
+ * Items that scale with home size use `perSqft` rates instead of flat `cost`.
+ * The calculation engine multiplies perSqft × applicable sqft to get total.
+ * `cost` on per-sqft items is a reference default for ~2,000 sqft home (display fallback).
  */
 
 export interface ComponentEstimate {
+  /** Total cost — flat for per-unit items, reference default for per-sqft items */
   cost: number;
   roi: number;
+  /** If true, cost scales with sqft. Use materialPerSqft + laborPerSqft for breakdown. */
+  perSqft?: boolean;
+  /** Material cost per sqft (installed material only, no labor) */
+  materialPerSqft?: number;
+  /** Labor cost per sqft */
+  laborPerSqft?: number;
+  /** Default sqft assumption used to compute the reference `cost` */
+  defaultSqft?: number;
 }
 
 export const COMPONENT_ESTIMATES: Record<string, ComponentEstimate> = {
@@ -64,12 +77,14 @@ export const COMPONENT_ESTIMATES: Record<string, ComponentEstimate> = {
   'Home Office':      { cost: 10000, roi: 0.85 },
   'Laundry Room':     { cost: 14000, roi: 0.90 },
 
-  // ── Exterior — siding / door / window ──────────────────────────────
-  'Stucco':                    { cost: 18000, roi: 0.80 },
-  'Brick':                     { cost: 22000, roi: 0.85 },
-  'Stone Veneer':              { cost: 14000, roi: 0.65 },
-  'Hardie Board':              { cost: 19000, roi: 0.90 },
-  'Wood Siding':               { cost: 24000, roi: 0.95 },
+  // ── Exterior — siding (per-sqft of exterior wall area, Phoenix 2025–2026) ──
+  // Sources: HomeAdvisor, HomeGuide, Modernize, CommonwealthContracts
+  // `cost` = reference default for ~2,000 sqft exterior wall area (typical ~2,200 sqft home)
+  'Stucco':                    { cost: 16000, roi: 0.80, perSqft: true, materialPerSqft: 3.00, laborPerSqft: 5.00, defaultSqft: 2000 },  // $8/sqft installed
+  'Brick':                     { cost: 26000, roi: 0.85, perSqft: true, materialPerSqft: 6.00, laborPerSqft: 7.00, defaultSqft: 2000 },  // $13/sqft installed
+  'Stone Veneer':              { cost: 20000, roi: 0.65, perSqft: true, materialPerSqft: 5.00, laborPerSqft: 5.00, defaultSqft: 2000 },  // $10/sqft installed
+  'Hardie Board':              { cost: 20000, roi: 0.90, perSqft: true, materialPerSqft: 4.00, laborPerSqft: 6.00, defaultSqft: 2000 },  // $10/sqft installed
+  'Wood Siding':               { cost: 28000, roi: 0.95, perSqft: true, materialPerSqft: 7.00, laborPerSqft: 7.00, defaultSqft: 2000 },  // $14/sqft installed
   'Metal Accents':             { cost:  6000, roi: 0.75 },
   'Energy Efficient Windows':  { cost: 12000, roi: 0.85 },
   'French Doors':              { cost:  4500, roi: 0.88 },
@@ -105,7 +120,7 @@ export const COMPONENT_ESTIMATES: Record<string, ComponentEstimate> = {
   'Smart Lighting':    { cost:  3000, roi: 0.75 },
   'Surge Protection':  { cost:  1000, roi: 0.60 },
   'Rewiring':          { cost: 15000, roi: 0.75 },
-  'Solar':             { cost: 18000, roi: 0.75 },
+  'Solar':             { cost: 22000, roi: 0.75 },  // ~8kW system Phoenix 2025; $2.75/W installed pre-ITC
   'Repipe':            { cost: 12000, roi: 0.70 },
   'Water Heater':      { cost:  3000, roi: 0.75 },
   'Tankless':          { cost:  6000, roi: 0.80 },
@@ -124,17 +139,85 @@ export const COMPONENT_ESTIMATES: Record<string, ComponentEstimate> = {
   'Victorian':     { cost: 18000, roi: 0.82 },
   'Traditional':   { cost: 10000, roi: 0.88 },
 
-  // ── Whole-home flooring (size-based) ──────────────────────────────
-  'Carpet':   { cost: 22000, roi: 0.70 },
-  'Laminate': { cost: 35000, roi: 0.80 },
-  'Hardwood': { cost: 55000, roi: 1.10 },
-  'Tile':     { cost: 48000, roi: 0.90 },
+  // ── Whole-home flooring (per-sqft, Phoenix 2025–2026) ─────────────
+  // Sources: Angi Phoenix, Eagle Flooring West, Floor One AZ, AZ Hardwood Supply
+  // `cost` = reference default for ~2,000 sqft livable floor area
+  'Carpet':   { cost: 10000,  roi: 0.70, perSqft: true, materialPerSqft: 2.00, laborPerSqft: 3.00, defaultSqft: 2000 },  // $5/sqft installed
+  'Laminate': { cost: 16000,  roi: 0.80, perSqft: true, materialPerSqft: 3.50, laborPerSqft: 4.50, defaultSqft: 2000 },  // $8/sqft installed
+  'Hardwood': { cost: 24000,  roi: 1.10, perSqft: true, materialPerSqft: 6.00, laborPerSqft: 6.00, defaultSqft: 2000 },  // $12/sqft installed
+  'Tile':     { cost: 28000,  roi: 0.90, perSqft: true, materialPerSqft: 7.00, laborPerSqft: 7.00, defaultSqft: 2000 },  // $14/sqft installed
 
-  // ── Pool ──────────────────────────────────────────────────────────
-  'Basic':    { cost:  45000, roi: 0.60 },
-  'Standard': { cost:  95000, roi: 0.40 },
-  'Luxury':   { cost: 125000, roi: 0.70 },
+  // ── Pool (Phoenix 2025–2026: Shasta Pools / Blue Square data) ────
+  'Basic':    { cost:  55000, roi: 0.50 },  // Small 20–24' gunite, Phoenix avg $52K
+  'Standard': { cost:  80000, roi: 0.40 },  // Medium 28–32' gunite w/ features, Phoenix avg $74K
+  'Luxury':   { cost: 120000, roi: 0.55 },  // Large 35'+ custom w/ spa, Phoenix avg $109K
 };
+
+/* ────────────────────────────────────────────────────────────────────────────
+ *  Per-sqft trade rates — used by ContractorReview and the SOW cost engine.
+ *  Phoenix 2025–2026 market data.
+ *
+ *  Sources: Angi Phoenix, HomeAdvisor, HomeGuide, Miko LLC, BhumiCalculator,
+ *  Floor Daddy, MySitePlan framing guide, 247Pro insulation guide.
+ * ──────────────────────────────────────────────────────────────────────────── */
+
+export interface TradeRate {
+  /** Material cost per sqft */
+  materialPerSqft: number;
+  /** Labor cost per sqft */
+  laborPerSqft: number;
+  /** Total installed cost per sqft (material + labor) */
+  totalPerSqft: number;
+  /** Source / notes */
+  source: string;
+}
+
+/**
+ * Per-sqft rates for construction trades that scale with area.
+ * These feed the ContractorReview page and the itemized cost builder.
+ */
+export const TRADE_RATES: Record<string, TradeRate> = {
+  // Demolition: interior gut demo $4–$15/sqft; using $8 avg for mid-scope reno
+  demo:       { materialPerSqft: 1.00, laborPerSqft: 7.00, totalPerSqft: 8.00,  source: 'Angi/HomeAdvisor Phoenix 2025; interior gut demo avg' },
+  // Framing: $11–$25/sqft wood stud; using $18 for 2×6 exterior + 2×4 interior
+  framing:    { materialPerSqft: 7.00, laborPerSqft: 11.00, totalPerSqft: 18.00, source: 'MySitePlan 2026; 2×6 ext + 2×4 int framing Phoenix' },
+  // Insulation: batt + foam sheathing $2–$5/sqft; using $3.50 for R-21 + R-5 combo
+  insulation: { materialPerSqft: 1.50, laborPerSqft: 2.00, totalPerSqft: 3.50,  source: '247Pro 2025; batt + continuous foam sheathing' },
+  // Drywall: $2.80–$5.00/sqft Phoenix; using $3.75 for 1/2" + 5/8" mix
+  drywall:    { materialPerSqft: 1.25, laborPerSqft: 2.50, totalPerSqft: 3.75,  source: 'Handoff.ai Phoenix 2025; 1/2" & 5/8" Type-X mix' },
+  // Painting: $2.75–$4.70/sqft; using $3.50 for primer + 2 coats eggshell
+  painting:   { materialPerSqft: 0.75, laborPerSqft: 2.75, totalPerSqft: 3.50,  source: 'HomeGuide 2025; Sherwin-Williams Emerald; 1 primer + 2 finish' },
+  // Exterior finish: stucco $8/sqft avg in Phoenix (dominant material)
+  exterior:   { materialPerSqft: 3.00, laborPerSqft: 5.00, totalPerSqft: 8.00,  source: 'HomeAdvisor Phoenix 2025; stucco baseline' },
+  // Flooring — LVP baseline (most common in Phoenix renos)
+  flooring:   { materialPerSqft: 4.50, laborPerSqft: 3.50, totalPerSqft: 8.00,  source: 'ProLine Flooring Phoenix 2025; LVP mid-grade baseline' },
+  // Roofing: tile re-roof $5–$12/sqft; using $8 for concrete tile
+  roofing:    { materialPerSqft: 3.50, laborPerSqft: 4.50, totalPerSqft: 8.00,  source: 'Angi Phoenix 2025; concrete tile re-roof' },
+};
+
+/** Helper: compute total cost for a trade given sqft */
+export function tradeCostForSqft(tradeId: string, sqft: number): { material: number; labor: number; total: number } {
+  const rate = TRADE_RATES[tradeId];
+  if (!rate) return { material: 0, labor: 0, total: 0 };
+  return {
+    material: Math.round(rate.materialPerSqft * sqft),
+    labor: Math.round(rate.laborPerSqft * sqft),
+    total: Math.round(rate.totalPerSqft * sqft),
+  };
+}
+
+/** Helper: compute component cost scaled to actual sqft (falls back to flat cost) */
+export function scaledComponentCost(name: string, sqft?: number): { material: number; labor: number; total: number } {
+  const est = COMPONENT_ESTIMATES[name];
+  if (!est) return { material: 0, labor: 0, total: 0 };
+  if (est.perSqft && sqft && sqft > 0 && est.materialPerSqft != null && est.laborPerSqft != null) {
+    const material = Math.round(est.materialPerSqft * sqft);
+    const labor = Math.round(est.laborPerSqft * sqft);
+    return { material, labor, total: material + labor };
+  }
+  // Flat cost — no material/labor split available
+  return { material: 0, labor: 0, total: est.cost };
+}
 
 /**
  * Per-feature Unsplash image URLs.

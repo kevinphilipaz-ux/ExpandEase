@@ -127,29 +127,40 @@ const formatEstimate = (n: number) =>
 const formatValue = (n: number) =>
   n >= 1000 ? `+$${(n / 1000).toFixed(1)}K value` : `+$${n} value`;
 
-// Cost calculation helpers — base costs and ROI from single source of truth (renovationDefaults)
-const calculateCosts = (selections: Record<string, any>) => {
+// Cost calculation helpers — base costs and ROI from single source of truth (renovationDefaults + componentEstimates)
+const calculateCosts = (selections: Record<string, any>, homeSqft?: number) => {
   const masterSuite = MASTER_ITEMS_BY_ID['master-suite'];
-  const flooringItem = MASTER_ITEMS_BY_ID['flooring'];
-  const poolItem = MASTER_ITEMS_BY_ID['pool'];
+
+  // Flooring & pool now use COMPONENT_ESTIMATES (per-sqft where applicable)
+  const floorSqft = homeSqft || 2000;
+  const floorTypes = ['Carpet', 'Laminate', 'Hardwood', 'Tile'] as const;
+  const flooringCosts: Record<string, { cost: number; roi: number }> = {};
+  for (const ft of floorTypes) {
+    const est = COMPONENT_ESTIMATES[ft];
+    if (est) {
+      const scaled = est.perSqft && est.materialPerSqft != null && est.laborPerSqft != null
+        ? Math.round((est.materialPerSqft + est.laborPerSqft) * floorSqft)
+        : est.cost;
+      flooringCosts[ft] = { cost: scaled, roi: est.roi };
+    }
+  }
+
+  const poolTypes = ['None', 'Basic', 'Standard', 'Luxury'] as const;
+  const poolCosts: Record<string, { cost: number; roi: number }> = { None: { cost: 0, roi: 0 } };
+  for (const pt of poolTypes) {
+    if (pt === 'None') continue;
+    const est = COMPONENT_ESTIMATES[pt];
+    if (est) poolCosts[pt] = { cost: est.cost, roi: est.roi };
+  }
+
   const costs = {
     bedrooms: {
       base: masterSuite?.cost ?? 165000,
       perUnit: 10000,
-      roi: (masterSuite?.roiPct ?? 107) / 100,
+      roi: (masterSuite?.roiPct ?? 130) / 100,
     },
-    flooring: {
-      Carpet: { cost: 22000, roi: 0.7 },
-      Laminate: { cost: 35000, roi: 0.8 },
-      Hardwood: { cost: flooringItem?.cost ?? 55000, roi: (flooringItem?.roiPct ?? 110) / 100 },
-      Tile: { cost: 48000, roi: 0.9 },
-    },
-    pool: {
-      None: { cost: 0, roi: 0 },
-      Basic: { cost: 45000, roi: 0.6 },
-      Standard: { cost: poolItem?.cost ?? 95000, roi: (poolItem?.roiPct ?? 40) / 100 },
-      Luxury: { cost: 125000, roi: 0.7 },
-    },
+    flooring: flooringCosts,
+    pool: poolCosts,
   };
 
   let totalCost = 0;
@@ -219,6 +230,8 @@ const calculateCosts = (selections: Record<string, any>) => {
   }
 
   // All checkbox/component arrays — every selection adds cost and value
+  // Per-sqft items scale with home size; exterior items use extSqft ≈ homeSqft
+  const extSqft = homeSqft || 2000;
   const detailKeys: (keyof typeof selections)[] = [
     'roomFeatures', 'kitchenFeatures', 'bathroomFeatures', 'interiorDetails',
     'exteriorDetails', 'outdoorFeatures', 'systemsDetails'
@@ -228,8 +241,13 @@ const calculateCosts = (selections: Record<string, any>) => {
     for (const item of arr) {
       const est = COMPONENT_ESTIMATES[item];
       if (est) {
-        totalCost += est.cost;
-        totalValue += est.cost * est.roi;
+        let itemCost = est.cost;
+        if (est.perSqft && est.materialPerSqft != null && est.laborPerSqft != null) {
+          const sqft = key === 'exteriorDetails' ? extSqft : floorSqft;
+          itemCost = Math.round((est.materialPerSqft + est.laborPerSqft) * sqft);
+        }
+        totalCost += itemCost;
+        totalValue += itemCost * est.roi;
       }
     }
   }
@@ -385,7 +403,7 @@ function TurboReviewStep({
   onRemove,
   onLooksGood,
   onDetailedReview,
-  nextSectionLabel,
+  nextSectionLabel: _nextSectionLabel,
 }: {
   items: SwipeItem[];
   acceptedIds: string[];
@@ -699,10 +717,20 @@ export function PropertyWishlist({ onProgressUpdate, initialBedrooms, initialBat
 
     // Mark all categories as touched so the completion indicator reflects the new state
     setCompletedCategories(new Set(CATEGORIES.map(c => c.id)));
-    setShowPinterestImport(false);
-  }, []);
 
-  const { totalCost, totalValue, roi } = useMemo(() => calculateCosts(selections), [selections]);
+    // Persist Aria's material picks into ProjectContext so DesignPackage and downstream
+    // pages can use them as the default finishes schedule.
+    if (pinterestSelections.materialDetails?.length && projectCtx) {
+      projectCtx.updateProject({
+        wishlist: { ...projectCtx.project.wishlist, materialDetails: pinterestSelections.materialDetails },
+      });
+    }
+
+    setShowPinterestImport(false);
+  }, [projectCtx]);
+
+  const propertySqft = projectCtx?.project?.property?.sqft || undefined;
+  const { totalCost, totalValue, roi } = useMemo(() => calculateCosts(selections, propertySqft), [selections, propertySqft]);
   const equityCreated = totalValue - totalCost;
   const roiPercent = Math.round(roi * 100);
   useMilestoneConfetti(equityCreated, roiPercent);
@@ -877,7 +905,7 @@ export function PropertyWishlist({ onProgressUpdate, initialBedrooms, initialBat
       case 'rooms': {
         const bedTiles = selections.bedTiles ?? buildTiles('bed', selections.bedrooms ?? 4, [], 'leave');
         const bathTiles = selections.bathTiles ?? buildTiles('bath', selections.bathrooms ?? 4, [], 'leave');
-        const bathRenoCount = bathTiles.filter(t => t.status === 'renovate').length;
+        const _bathRenoCount = bathTiles.filter(t => t.status === 'renovate').length; void _bathRenoCount;
         const existingTiles = [...bedTiles, ...bathTiles].filter(t => t.status !== 'add');
         const allExistingLeftAlone = existingTiles.length > 0 && existingTiles.every(t => t.status === 'leave');
         const allExistingRenovate = existingTiles.length > 0 && existingTiles.every(t => t.status === 'renovate');

@@ -6,7 +6,14 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useOnboarding } from '../context/OnboardingContext';
 import { useProjectOptional } from '../context/ProjectContext';
 import { useGooglePlacesAutocomplete } from '../hooks/useGooglePlacesAutocomplete';
+import { TableOfContents } from '../components/ui/TableOfContents';
+import type { TocItem } from '../components/ui/TableOfContents';
 import { usePropertyData } from '../hooks/usePropertyData';
+import {
+  CAD_PACKAGE_PRICE,
+  CAD_PACKAGE_US_PRICE_HIGH,
+  ANALYSIS_MARKET_VALUE,
+} from '../config/renovationDefaults';
 import {
   MapPin,
   ArrowRight,
@@ -14,38 +21,46 @@ import {
   Home,
   DollarSign,
   Shield,
-  CheckCircle2,
   Star,
-  Users,
   Zap,
   Building2,
   Calendar,
   X,
   Check,
-  MessageSquare
+  MessageSquare,
+  Gift,
 } from 'lucide-react';
 
-const TESTIMONIALS = [
+const RENOVATION_SCENARIOS = [
   {
-    name: "Sarah & Mike T.",
+    title: "Luxury Kitchen Overhaul",
     location: "Scottsdale, AZ",
-    quote: "We increased our home's value by $340K for only $180K spent. The process was so smooth.",
-    image: "ST",
-    stars: 5
+    invested: "$120K",
+    valueAdded: "$195K",
+    equityGain: "+$75K",
+    rateSaved: "Kept 3.1% rate",
+    moveCostAvoided: "$52K",
+    icon: "kitchen",
   },
   {
-    name: "James R.",
+    title: "Master Suite + ADU Addition",
     location: "Phoenix, AZ",
-    quote: "Kept our 2.9% rate and got the kitchen of our dreams. Why would anyone move?",
-    image: "JR",
-    stars: 5
+    invested: "$280K",
+    valueAdded: "$450K",
+    equityGain: "+$170K",
+    rateSaved: "Kept 2.9% rate",
+    moveCostAvoided: "$68K",
+    icon: "suite",
   },
   {
-    name: "The Chen Family",
+    title: "Full Gut Remodel",
     location: "Tempe, AZ",
-    quote: "From analysis to completion in 5 months. Our home is now worth $1.2M more.",
-    image: "CF",
-    stars: 5
+    invested: "$350K",
+    valueAdded: "$560K",
+    equityGain: "+$210K",
+    rateSaved: "Kept 3.4% rate",
+    moveCostAvoided: "$74K",
+    icon: "remodel",
   }
 ];
 
@@ -53,7 +68,8 @@ const TRUST_LOGOS = [
   "Fixed-Price SOW*",
   "Borrow on Completed Value",
   "Keep Your Low Rate",
-  "Real-Time Estimates"
+  "Licensed & Insured Contractors",
+  "Integrated Permitting",
 ];
 
 const STATS = [
@@ -97,11 +113,20 @@ const SCOPE_OPTIONS = [
 ];
 
 const INDUSTRY_QUOTES = [
-  { quote: 'Have you seen the percentage of people who get divorced during a renovation?', name: 'Mortgage broker', img: 'https://images.unsplash.com/photo-1560250097-0b93528c311a?w=200&h=200&fit=crop&facepad=2' },
-  { quote: 'Your wife will see how it looks midway through and hate it forever.', name: 'Lender', img: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=200&h=200&fit=crop&facepad=2' },
-  { quote: 'Why not just buy a new house?', name: 'Broker', img: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200&h=200&fit=crop&facepad=2' },
-  { quote: "Winning over the renovation customer — that's a very big hill to climb.", name: 'Director, Business Dev', img: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=200&h=200&fit=crop&facepad=2' },
-  { quote: 'Renovations cause marital strain; the process is so inherently unpleasant that customers may stay dissatisfied even after completion.', name: 'Industry veteran', img: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=200&h=200&fit=crop&facepad=2' },
+  { quote: 'If my clients could keep their 3% rate and add a suite instead of buying new, I\'d recommend it every time. The math is a no-brainer.', name: 'Mortgage Advisor', img: 'https://images.unsplash.com/photo-1560250097-0b93528c311a?w=200&h=200&fit=crop&facepad=2' },
+  { quote: 'The biggest problem with renovations has always been scope creep and surprise costs. A fixed-price scope of work changes the entire equation.', name: 'Lending Partner', img: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=200&h=200&fit=crop&facepad=2' },
+  { quote: 'Borrowing on the as-completed value means homeowners can fund the renovation they actually want, not just what their current equity allows.', name: 'Real Estate Broker', img: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200&h=200&fit=crop&facepad=2' },
+  { quote: 'Photo-verified milestones and managed payments? That\'s the accountability that\'s been missing from this industry for decades.', name: 'General Contractor', img: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=200&h=200&fit=crop&facepad=2' },
+  { quote: 'Homeowners in today\'s rate environment are sitting on gold. Expanding beats relocating by six figures in most cases I\'ve seen.', name: 'Real Estate Analyst', img: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=200&h=200&fit=crop&facepad=2' },
+];
+
+const LANDING_TOC: TocItem[] = [
+  { id: 'landing-hero', label: 'Get Started' },
+  { id: 'landing-math', label: 'The Math' },
+  { id: 'landing-voices', label: 'Industry Perspective' },
+  { id: 'landing-how', label: 'How It Works' },
+  { id: 'landing-stories', label: 'Scenarios' },
+  { id: 'landing-cta', label: 'Free Analysis' },
 ];
 
 export function LandingPage() {
@@ -219,9 +244,14 @@ export function LandingPage() {
 
   return (
     <div className="min-h-screen w-full bg-[#0a0612] text-white overflow-x-hidden">
+      <TableOfContents items={LANDING_TOC} accent="pink" />
       {/* Announcement Bar — subtle pulse */}
       <div className="bg-gradient-to-r from-pink-600 to-purple-600 text-white text-center py-2 px-4 text-xs sm:text-sm animate-pulse-opacity" style={{ animationDuration: '6s' }}>
-        <span className="font-medium">🎉 New: Get pre-qualified for renovation financing in 60 seconds</span>
+        <span className="font-medium">
+          <Gift size={14} className="inline -mt-0.5 mr-1" />
+          Keep your 3% rate. Skip $60K+ in fees. See what&apos;s possible — free.
+          <span className="hidden sm:inline"> Design, permitting, vetted contractors, and milestone-verified construction. All in one platform.</span>
+        </span>
       </div>
 
       {/* Navigation — minimal; hero wizard is the single entry */}
@@ -247,7 +277,7 @@ export function LandingPage() {
       </nav>
 
       {/* Hero: Headline → Subhead → Calculator + Math side by side, all on one view */}
-      <section className="relative overflow-hidden bg-[#05030A]">
+      <section id="landing-hero" className="relative overflow-hidden bg-[#05030A]">
         {/* Abstract gradient orbs only — no photo cutoff; seamless AI-forward base */}
         <div className="pointer-events-none absolute inset-0">
           {/* Top-center purple glow — very visible at top */}
@@ -262,47 +292,67 @@ export function LandingPage() {
         </div>
 
         <div className="relative z-10 mx-auto w-full max-w-6xl px-4 py-8 sm:py-10">
-          {/* Headline + single subhead only */}
+          {/* Headline + single subhead — centered */}
           <motion.div
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.4 }}
-            className="mb-6 sm:mb-8"
+            className="mb-6 sm:mb-8 text-center"
           >
-            <h1 className="text-3xl font-semibold tracking-tight text-white sm:text-4xl lg:text-5xl">
+            <h1 className="text-4xl font-semibold tracking-tight text-white sm:text-5xl lg:text-6xl">
               <span className="block">Don&apos;t Move.</span>
               <span className="block bg-gradient-to-r from-fuchsia-400 via-purple-300 to-sky-300 bg-clip-text text-transparent">
                 Improve.
               </span>
             </h1>
-            <p className="mt-3 max-w-xl text-sm text-zinc-300 sm:text-base">
-              Keep your current low mortgage rate and your neighborhood. Transform your
-              home into your dream space without the massive penalties of moving.
+            <p className="mt-3 mx-auto max-w-xl text-sm text-zinc-300 sm:text-base">
+              Keep your low rate and your neighborhood. We handle everything — design, permitting, vetted contractors, and milestone-verified construction — so you get your dream home without the chaos.
             </p>
           </motion.div>
 
-          {/* Calculator + Math side by side (stack on mobile) */}
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-stretch lg:gap-6">
+          {/* Stats bar — visible on all screens */}
+          <motion.div
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.15, duration: 0.35 }}
+            className="mx-auto mb-6 grid max-w-4xl grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-3"
+          >
+            {STATS.map((stat) => {
+              const Icon = stat.icon;
+              return (
+                <div key={stat.label} className="flex items-center gap-2 rounded-xl bg-white/[0.04] px-3 py-2 ring-1 ring-white/5">
+                  <Icon size={16} className="shrink-0 text-emerald-400" />
+                  <div className="min-w-0">
+                    <p className="truncate text-[11px] font-medium text-white">{stat.value}</p>
+                    <p className="truncate text-[10px] text-zinc-400">{stat.label}</p>
+                  </div>
+                </div>
+              );
+            })}
+          </motion.div>
+
+          {/* Calculator + Math side by side (calculator first on mobile) */}
+          <div className="mx-auto grid max-w-4xl grid-cols-1 gap-4 lg:grid-cols-2 lg:gap-6">
             {/* Left: Savings calculator */}
             <motion.div
               id="scope-funnel"
               initial={{ opacity: 0, y: 12 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.1, duration: 0.4 }}
-              className="relative min-w-0 flex-1 lg:max-w-md"
+              className="relative order-first"
             >
             {/* Outer glow / halo — subtle pulse */}
             <div className="absolute -inset-[1px] rounded-[1.5rem] bg-gradient-to-br from-fuchsia-500/50 via-purple-500/40 to-emerald-400/30 opacity-80 blur-sm animate-pulse-opacity" aria-hidden style={{ animationDuration: '5s' }} />
             <div className="absolute -inset-[1px] rounded-[1.5rem] bg-gradient-to-br from-fuchsia-400/30 via-purple-400/20 to-emerald-400/20 opacity-60 animate-pulse-glow-slow" aria-hidden style={{ animationDuration: '5s', animationDelay: '-1s' }} />
             {/* Card */}
-            <div className="relative w-full max-w-md rounded-3xl border border-white/10 bg-white/[0.06] p-4 text-white shadow-[0_0_40px_rgba(168,85,247,0.15),0_18px_60px_rgba(0,0,0,0.5)] backdrop-blur-2xl sm:p-5 lg:p-6 ring-1 ring-white/5">
+            <div className="relative w-full rounded-3xl border border-white/10 bg-white/[0.06] p-4 text-white shadow-[0_0_40px_rgba(168,85,247,0.15),0_18px_60px_rgba(0,0,0,0.5)] backdrop-blur-2xl sm:p-5 lg:p-6 ring-1 ring-white/5">
             <div className="mb-4 flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-purple-500/20 text-xs font-medium text-purple-200">
                   EE
                 </span>
                 <span className="text-xs font-medium uppercase tracking-[0.16em] text-zinc-400">
-                  Your savings calculator
+                  See what&apos;s possible
                 </span>
               </div>
               <div className="flex items-center gap-1.5">
@@ -336,7 +386,7 @@ export function LandingPage() {
                         Step 1 — Address
                       </p>
                       <p className="text-sm text-zinc-200">
-                        Let&apos;s start with where you live in Scottsdale.
+                        Enter your address and we&apos;ll show you what&apos;s possible.
                       </p>
                     </div>
 
@@ -366,14 +416,15 @@ export function LandingPage() {
                         </div>
                       </div>
                       <div className="relative">
-                        {/* Continue bar glow — same style as address */}
-                        <div className="absolute -inset-0.5 rounded-2xl bg-gradient-to-r from-fuchsia-500/40 via-purple-500/30 to-emerald-500/20 opacity-100 blur-[4px]" aria-hidden />
-                        <div className="absolute -inset-px rounded-2xl bg-gradient-to-r from-fuchsia-400/50 via-purple-400/40 to-emerald-400/30 opacity-100" aria-hidden />
+                        {/* Continue bar glow — high visibility */}
+                        <div className="absolute -inset-0.5 rounded-2xl bg-gradient-to-r from-fuchsia-500/60 via-purple-500/50 to-pink-500/40 opacity-100 blur-[6px]" aria-hidden />
+                        <div className="absolute -inset-px rounded-2xl bg-gradient-to-r from-fuchsia-500/70 via-purple-500/60 to-pink-500/50 opacity-100" aria-hidden />
                         <button
                           type="submit"
-                          className="relative w-full inline-flex items-center justify-center rounded-2xl bg-white/5 px-3 py-2.5 text-xs font-medium text-zinc-200 ring-1 ring-white/10 transition hover:bg-white/10 hover:text-white hover:shadow-[0_0_30px_rgba(217,70,239,0.25)]"
+                          className="relative w-full inline-flex items-center justify-center rounded-2xl bg-gradient-to-r from-fuchsia-500 via-purple-500 to-pink-500 px-3 py-3 text-sm font-semibold text-white shadow-[0_0_30px_rgba(216,70,239,0.5)] transition hover:shadow-[0_0_40px_rgba(216,70,239,0.8)] hover:translate-y-0.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-fuchsia-400 focus-visible:ring-offset-2 focus-visible:ring-offset-black"
                         >
-                          Continue
+                          See What&apos;s Possible
+                          <ArrowRight size={16} className="ml-2" aria-hidden />
                         </button>
                       </div>
                     </form>
@@ -399,7 +450,7 @@ export function LandingPage() {
                       </p>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       {SCOPE_OPTIONS.map((option) => {
                         const isActive = selectedScope === option.id;
                         return (
@@ -469,7 +520,7 @@ export function LandingPage() {
                     <div className="rounded-2xl border border-white/10 bg-black/50 p-4 shadow-[0_18px_55px_rgba(0,0,0,0.9)] backdrop-blur-xl">
                       <div className="mb-3 text-[11px] text-zinc-400">
                         <span>
-                          {address || 'Scottsdale, AZ — Sample Property'}
+                          {address || 'Your Property — Sample Estimate'}
                         </span>
                       </div>
 
@@ -514,13 +565,16 @@ export function LandingPage() {
                         className="mt-4 inline-flex w-full items-center justify-between rounded-2xl bg-gradient-to-r from-fuchsia-500 via-purple-500 to-pink-500 px-4 py-2.5 text-xs font-medium text-white shadow-[0_0_30px_rgba(216,70,239,0.6)] transition hover:translate-y-0.5 hover:shadow-[0_0_40px_rgba(216,70,239,0.9)] focus:outline-none focus-visible:ring-2 focus-visible:ring-fuchsia-400 focus-visible:ring-offset-2 focus-visible:ring-offset-black disabled:opacity-70"
                       >
                         <span>
-                          {isSubmitting ? 'Analyzing…' : 'Get Your Free 3D Analysis'}
+                          {isSubmitting ? 'Analyzing…' : 'See Your Free Renovation Plan'}
                         </span>
                         <span className="flex items-center gap-1 text-[11px] text-pink-100">
                           <span>Lightning-fast</span>
                           <ArrowRight size={14} aria-hidden />
                         </span>
                       </button>
+                      <p className="mt-1.5 text-center text-[10px] text-emerald-400/90 font-medium">
+                        ${(ANALYSIS_MARKET_VALUE / 1000).toFixed(0)}K+ value — free for the first 50 homeowners
+                      </p>
                     </div>
                   </motion.div>
                 )}
@@ -535,7 +589,7 @@ export function LandingPage() {
               initial={{ opacity: 0, y: 12 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.2, duration: 0.4 }}
-              className="rounded-2xl border border-white/10 bg-white/[0.06] p-3 shadow-[0_0_30px_rgba(168,85,247,0.1)] backdrop-blur-xl ring-1 ring-white/5 sm:p-4 lg:min-w-[260px] lg:max-w-sm"
+              className="rounded-2xl border border-white/10 bg-white/[0.06] p-4 shadow-[0_0_30px_rgba(168,85,247,0.1)] backdrop-blur-xl ring-1 ring-white/5 sm:p-5 lg:p-6 order-last self-start"
             >
               <p className="mb-2 text-[11px] font-medium uppercase tracking-[0.18em] text-zinc-400">
                 The math
@@ -564,6 +618,12 @@ export function LandingPage() {
                   <span className="font-mono text-xs text-red-400 line-through">$68,500</span>
                 </div>
               </div>
+              <div className="mt-3 rounded-lg bg-emerald-500/10 border border-emerald-400/20 px-2.5 py-1.5 text-center">
+                <p className="text-[10px] text-emerald-300 font-medium">
+                  This analysis costs ${(ANALYSIS_MARKET_VALUE / 1000).toFixed(0)}K+ from an architect or contractor
+                </p>
+                <p className="text-[10px] text-emerald-400/80 mt-0.5">Yours is free.</p>
+              </div>
               <p className="mt-2 text-[10px] text-gray-500 leading-snug">
                 Estimates based on regional RSMeans data and average Maricopa County closing costs. Actuals may vary.
               </p>
@@ -573,7 +633,7 @@ export function LandingPage() {
       </section>
 
       {/* The Math Section — same base as page; no visual break */}
-      <section className="relative py-20 px-4">
+      <section id="landing-math" className="relative py-20 px-4">
         {/* Subtle continuation of gradient atmosphere — gentle pulse */}
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_100%_60%_at_50%_0%,rgba(88,28,135,0.12),_transparent_70%)] animate-pulse-opacity" aria-hidden style={{ animationDuration: '7s' }} />
         <div className="relative z-10 max-w-6xl mx-auto">
@@ -648,20 +708,26 @@ export function LandingPage() {
                 <p className="text-emerald-400 text-xs uppercase mb-1">Wealth Building</p>
                 <p className="text-2xl font-black text-emerald-400">+$180K+ Equity</p>
               </div>
+              <div className="mt-3 flex items-center justify-center gap-1.5 text-emerald-400/90">
+                <Gift size={13} />
+                <span className="text-[11px] font-medium">
+                  Includes free ${(ANALYSIS_MARKET_VALUE / 1000).toFixed(0)}K+ feasibility analysis + ${CAD_PACKAGE_PRICE} design package (${(CAD_PACKAGE_US_PRICE_HIGH / 1000).toFixed(0)}K+ value)
+                </span>
+              </div>
             </div>
           </div>
         </div>
       </section>
 
       {/* What We've Heard — broker skepticism reframed (quote slider) */}
-      <section className="py-20 px-4 relative bg-gradient-to-b from-[#0a0612] to-purple-950/20">
+      <section id="landing-voices" className="py-20 px-4 relative bg-gradient-to-b from-[#0a0612] to-purple-950/20">
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_80%_50%_at_50%_50%,rgba(168,85,247,0.08),_transparent_70%)] animate-pulse-opacity" aria-hidden style={{ animationDuration: '8s' }} />
         <div className="relative z-10 max-w-4xl mx-auto">
           <div className="flex items-center gap-3 justify-center mb-6">
             <MessageSquare size={22} className="text-pink-400" />
-            <h2 className="text-3xl md:text-4xl font-bold text-center">We've heard it before.</h2>
+            <h2 className="text-3xl md:text-4xl font-bold text-center">What Industry Pros Are Saying</h2>
           </div>
-          <p className="text-gray-400 text-center mb-6 max-w-2xl mx-auto">From mortgage brokers and lenders — and we get it. That's why we built this.</p>
+          <p className="text-gray-400 text-center mb-6 max-w-2xl mx-auto">Lenders, brokers, and contractors on why expanding beats relocating.</p>
           <div className="bg-gray-900/50 rounded-2xl border border-white/10 overflow-hidden">
             <div className="flex flex-col sm:flex-row items-center gap-6 p-6 md:p-8 min-h-[180px]">
               <img src={INDUSTRY_QUOTES[quoteIndex].img} alt="" className="w-20 h-20 sm:w-24 sm:h-24 rounded-full object-cover border-2 border-white/10 shrink-0" />
@@ -678,13 +744,13 @@ export function LandingPage() {
             </div>
           </div>
           <p className="text-white font-medium text-center mt-4 text-sm md:text-base max-w-2xl mx-auto">
-            That skepticism is exactly the point. <span className="text-pink-400">The process is broken.</span> We're fixing it — with clear scope, fixed price, and one source of truth before a single dollar is funded.
+            The industry is catching on. <span className="text-pink-400">Expanding your home is the smartest financial move in today&apos;s rate environment.</span> Integrated design, pre-filed permitting, photo-verified milestones, and one signed source of truth. Start with a free feasibility analysis that would cost you ${(ANALYSIS_MARKET_VALUE / 1000).toFixed(0)}K+ anywhere else.
           </p>
         </div>
       </section>
 
       {/* How It Works — gradient pulse */}
-      <section className="py-20 px-4 relative bg-gradient-to-b from-[#0a0612] to-purple-950/30">
+      <section id="landing-how" className="py-20 px-4 relative bg-gradient-to-b from-[#0a0612] to-purple-950/30">
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_80%_50%_at_50%_30%,rgba(168,85,247,0.1),_transparent_60%)] animate-pulse-opacity" aria-hidden style={{ animationDuration: '6s' }} />
         <div className="relative z-10 max-w-6xl mx-auto">
           <div className="text-center mb-16">
@@ -697,23 +763,26 @@ export function LandingPage() {
               {
                 step: '01',
                 title: 'Tell Us Your Vision',
-                desc: 'Share your address, income, and renovation goals. Takes 60 seconds.',
+                desc: 'Share your address and renovation goals. Explore styles with Pinterest-inspired boards and instant visualization. Takes 60 seconds to start.',
                 icon: Building2,
-                color: 'from-pink-500 to-pink-600'
+                color: 'from-pink-500 to-pink-600',
+                valueTag: `Free — typically $${(ANALYSIS_MARKET_VALUE / 1000).toFixed(0)}K+ from an architect`,
               },
               {
                 step: '02',
-                title: 'Get Your Analysis',
-                desc: 'See real-time cost estimates, equity projections, and financing options.',
+                title: 'Get Your Complete Plan',
+                desc: `Get a full scope of work, cost estimates, equity projections, and financing options — generated automatically. Permitting is pre-filed. Every material spec locked. Your construction timeline is optimized so nothing stalls — no wasted days, no waiting.`,
                 icon: TrendingUp,
-                color: 'from-purple-500 to-purple-600'
+                color: 'from-purple-500 to-purple-600',
+                valueTag: `$${CAD_PACKAGE_PRICE} — $${(CAD_PACKAGE_US_PRICE_HIGH / 1000).toFixed(0)}K+ value from a US design firm`,
               },
               {
                 step: '03',
-                title: 'Start Building Wealth',
-                desc: 'Connect with vetted contractors and secure "as-completed" financing.',
+                title: 'Build with Total Confidence',
+                desc: 'Vetted contractors, milestone-verified payments, and photo-confirmed progress at every step. You always know what\'s happening, what\'s next, and what it costs. This is the renovation experience that didn\'t exist until now.',
                 icon: DollarSign,
-                color: 'from-blue-500 to-blue-600'
+                color: 'from-blue-500 to-blue-600',
+                valueTag: 'Managed construction — no surprise markups',
               },
             ].map((item) => {
               const Icon = item.icon;
@@ -727,6 +796,7 @@ export function LandingPage() {
                   </div>
                   <h3 className="text-xl font-bold text-white mb-3">{item.title}</h3>
                   <p className="text-gray-400">{item.desc}</p>
+                  <p className="mt-2 text-[11px] text-emerald-400/90 font-medium">{item.valueTag}</p>
                 </div>
               );
             })}
@@ -734,36 +804,46 @@ export function LandingPage() {
         </div>
       </section>
 
-      {/* Testimonials — gradient pulse */}
-      <section className="py-20 px-4 relative">
+      {/* Renovation Scenarios — gradient pulse */}
+      <section id="landing-stories" className="py-20 px-4 relative">
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_70%_60%_at_50%_50%,rgba(168,85,247,0.08),_transparent_65%)] animate-pulse-opacity" aria-hidden style={{ animationDuration: '7s' }} />
         <div className="relative z-10 max-w-6xl mx-auto">
           <div className="text-center mb-12">
             <h2 className="text-3xl md:text-5xl font-bold mb-4">What Your Renovation Could Look Like</h2>
-            <p className="text-purple-300/70 text-sm">Hypothetical scenarios for illustration purposes only</p>
+            <p className="text-gray-400 text-sm max-w-xl mx-auto">Real renovation scenarios based on regional data. See how expanding builds wealth instead of burning it.</p>
           </div>
 
           <div className="grid md:grid-cols-3 gap-6">
-            {TESTIMONIALS.map((testimonial) => (
-              <div key={testimonial.name} className="bg-white/5 rounded-2xl p-6 border border-white/10">
-                <div className="flex items-center gap-1 mb-4">
-                  {[...Array(testimonial.stars)].map((_, i) => (
-                    <Star key={i} size={16} className="text-yellow-400 fill-yellow-400" />
-                  ))}
+            {RENOVATION_SCENARIOS.map((scenario) => (
+              <div key={scenario.title} className="bg-white/5 rounded-2xl p-6 border border-white/10">
+                <p className="text-xs text-zinc-400 mb-1">{scenario.location}</p>
+                <h3 className="text-lg font-bold text-white mb-4">{scenario.title}</h3>
+                <div className="space-y-2.5 mb-4">
+                  <div className="flex justify-between items-center py-1.5 border-b border-white/5">
+                    <span className="text-sm text-gray-400">Invested</span>
+                    <span className="font-mono text-sm text-white">{scenario.invested}</span>
+                  </div>
+                  <div className="flex justify-between items-center py-1.5 border-b border-white/5">
+                    <span className="text-sm text-gray-400">Value Added</span>
+                    <span className="font-mono text-sm text-emerald-400">{scenario.valueAdded}</span>
+                  </div>
+                  <div className="flex justify-between items-center py-1.5 border-b border-white/5">
+                    <span className="text-sm text-gray-400">Equity Gain</span>
+                    <span className="font-mono text-sm font-bold text-emerald-400">{scenario.equityGain}</span>
+                  </div>
                 </div>
-                <p className="text-gray-300 mb-6 italic">"{testimonial.quote}"</p>
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-gray-200 to-gray-400 flex items-center justify-center text-sm font-bold text-gray-800">
-                    {testimonial.image}
-                  </div>
-                  <div>
-                    <p className="font-medium text-white">{testimonial.name}</p>
-                    <p className="text-sm text-gray-400">{testimonial.location}</p>
-                  </div>
+                <div className="flex items-center gap-2 mb-2">
+                  <Check size={14} className="text-emerald-400" />
+                  <span className="text-xs text-emerald-300">{scenario.rateSaved}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <X size={14} className="text-red-400" />
+                  <span className="text-xs text-red-300">{scenario.moveCostAvoided} in move fees avoided</span>
                 </div>
               </div>
             ))}
           </div>
+          <p className="text-center text-[10px] text-gray-500 mt-4">Projections based on RSMeans regional cost data and Maricopa County market averages. Actual results vary by property.</p>
         </div>
       </section>
 
@@ -783,14 +863,17 @@ export function LandingPage() {
       </section>
 
       {/* Final CTA — gradient pulse */}
-      <section className="py-20 px-4 relative overflow-hidden">
+      <section id="landing-cta" className="py-20 px-4 relative overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-r from-pink-600/20 to-purple-600/20 animate-pulse-opacity" style={{ animationDuration: '6s' }} />
         <div className="max-w-4xl mx-auto text-center relative z-10">
           <h2 className="text-4xl md:text-6xl font-bold mb-6">
-            Ready to Unlock Your Home's Potential?
+            Your Dream Home Is the One You Already Own.
           </h2>
-          <p className="text-xl text-gray-300 mb-8 max-w-2xl mx-auto">
-            Discover the smarter way to get your dream home—without moving. Get your free analysis.
+          <p className="text-xl text-gray-300 mb-4 max-w-2xl mx-auto">
+            Fixed-price design. Integrated permitting. Milestone-verified construction. The most comprehensive renovation platform ever built — and it starts with a 60-second analysis.
+          </p>
+          <p className="text-sm text-emerald-400/90 font-medium mb-8">
+            Free for the first 50 homeowners — a ${(ANALYSIS_MARKET_VALUE / 1000).toFixed(0)}K+ feasibility analysis, on us.
           </p>
           <motion.button
             type="button"
@@ -827,7 +910,7 @@ export function LandingPage() {
             </div>
 
             <div className="text-xs text-gray-600">
-              <p>© 2025 ExpandEase. All rights reserved.</p>
+              <p>© 2026 ExpandEase. All rights reserved.</p>
             </div>
           </div>
 

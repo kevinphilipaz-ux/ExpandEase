@@ -208,7 +208,15 @@ function SwipeCard({
       onDragEnd={handleDragEnd}
       initial={{ scale: isTop ? 1 : 0.95, opacity: isTop ? 1 : 0.5, y: isTop ? 0 : 12 }}
       animate={{ scale: isTop ? 1 : 0.95, opacity: isTop ? 1 : 0.7, y: isTop ? 0 : 12 }}
-      exit={{ x: 300, opacity: 0, rotate: 15, transition: { duration: 0.22 } }}
+      variants={{
+        exit: (dir: 'left' | 'right') => ({
+          x: dir === 'right' ? 350 : -350,
+          opacity: 0,
+          rotate: dir === 'right' ? 15 : -15,
+          transition: { duration: 0.22 },
+        }),
+      }}
+      exit="exit"
       whileTap={isTop ? { scale: 1.02 } : undefined}
     >
       <div className="w-full h-full rounded-2xl overflow-hidden bg-gray-900 border border-white/10 shadow-2xl flex flex-col">
@@ -264,8 +272,8 @@ function SwipeCard({
           </div>
 
           {isTop && (
-            <p className="text-gray-600 text-[10px] text-center mt-2 shrink-0">
-              Swipe right to add &bull; Swipe left to skip
+            <p className="text-gray-500 text-[10px] text-center mt-2 shrink-0 select-none">
+              ← skip &nbsp;&bull;&nbsp; drag or use buttons &nbsp;&bull;&nbsp; add →
             </p>
           )}
         </div>
@@ -565,6 +573,9 @@ export function TinderMode({ items, onSelectionChange, onFinish, initialAccepted
   } | null>(null);
   const conflictDismissRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // Track the last swipe direction so the card exit animation matches
+  const exitDirRef = useRef<'left' | 'right'>('right');
+
   // Timer — runs from mount until finish
   const elapsed = useStopwatch(!isFinished);
   const elapsedRef = useRef(0);
@@ -581,6 +592,7 @@ export function TinderMode({ items, onSelectionChange, onFinish, initialAccepted
     (dir: 'left' | 'right') => {
       const item = items[currentIndex];
       if (!item) return;
+      exitDirRef.current = dir;
 
       let newAccepted = dir === 'right' ? [...accepted, item.id] : accepted;
       const newRejected = dir === 'left' ? [...rejected, item.id] : rejected;
@@ -657,6 +669,24 @@ export function TinderMode({ items, onSelectionChange, onFinish, initialAccepted
     setStreak(0);
   }, [history]);
 
+  // Keyboard shortcuts: ← skip, → add, Backspace/⌘Z undo
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      // Don't fire while typing in a form field
+      const tag = (e.target as HTMLElement)?.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+      if (isFinished) return;
+      if (e.key === 'ArrowRight') { e.preventDefault(); handleSwipe('right'); }
+      if (e.key === 'ArrowLeft')  { e.preventDefault(); handleSwipe('left'); }
+      if (e.key === 'Backspace' || (e.key === 'z' && (e.metaKey || e.ctrlKey))) {
+        e.preventDefault();
+        handleUndo();
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [handleSwipe, handleUndo, isFinished]);
+
   const handleReset = () => {
     setAccepted(initialAccepted);
     setRejected([]);
@@ -729,9 +759,21 @@ export function TinderMode({ items, onSelectionChange, onFinish, initialAccepted
       {/* Streak Banner (for big milestones) */}
       <StreakBanner streak={streak} />
 
+      {/* Conflict Toast — shows when a mutually-exclusive item auto-replaces another */}
+      <AnimatePresence>
+        {conflictNotice && (
+          <ConflictToast
+            replacedLabel={conflictNotice.replacedLabel}
+            newLabel={conflictNotice.newLabel}
+            groupLabel={conflictNotice.groupLabel}
+            onUndo={handleUndo}
+          />
+        )}
+      </AnimatePresence>
+
       {/* Card Stack */}
       <div className={`relative w-full mb-4 ${isFullScreen ? 'h-[46vh] min-h-[300px]' : 'h-[380px] sm:h-[420px]'}`}>
-        <AnimatePresence mode="popLayout">
+        <AnimatePresence mode="popLayout" custom={exitDirRef.current}>
           {nextItem && (
             <SwipeCard
               key={nextItem.id}
@@ -791,6 +833,11 @@ export function TinderMode({ items, onSelectionChange, onFinish, initialAccepted
         totalValue={totalValue}
         itemCount={accepted.length}
       />
+
+      {/* Keyboard shortcut hint — desktop only */}
+      <p className="hidden sm:block text-center text-[10px] text-gray-600 mt-3 select-none">
+        ← / → arrow keys to swipe &nbsp;·&nbsp; Backspace or ⌘Z to undo
+      </p>
     </div>
   );
 }

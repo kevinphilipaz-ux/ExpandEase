@@ -142,22 +142,22 @@ export interface KitchenSurfaceSet {
 
 export const KITCHEN_SURFACES: Record<KitchenLevel, KitchenSurfaceSet> = {
   Standard: {
-    countertops: { material: 'Laminate countertops',           cost: 3000,  laborPct: 0.40, trade: 'Countertop Installer' },
-    cabinets:    { material: 'Stock RTA cabinets',             cost: 9000,  laborPct: 0.35, trade: 'Cabinetry' },
-    backsplash:  { material: 'Peel-and-stick tile',            cost: 800,   laborPct: 0.30, trade: 'Tile' },
-    appliances:  { material: 'Standard stainless package',     cost: 5000,  laborPct: 0.10, trade: 'Appliance Install' },
-    flooring:    { material: 'Vinyl plank (LVP)',              cost: 2500,  laborPct: 0.50, trade: 'Flooring' },
-    lighting:    { material: 'Flush-mount + under-cabinet',    cost: 1200,  laborPct: 0.50, trade: 'Electrical' },
-    plumbing:    { material: 'Standard sink + faucet',         cost: 1500,  laborPct: 0.45, trade: 'Plumbing' },
+    countertops: { material: 'Laminate countertops',           cost: 3500,  laborPct: 0.40, trade: 'Countertop Installer' },
+    cabinets:    { material: 'Stock RTA cabinets',             cost: 12000, laborPct: 0.35, trade: 'Cabinetry' },
+    backsplash:  { material: 'Peel-and-stick tile',            cost: 1000,  laborPct: 0.30, trade: 'Tile' },
+    appliances:  { material: 'Standard stainless package',     cost: 6000,  laborPct: 0.10, trade: 'Appliance Install' },
+    flooring:    { material: 'Vinyl plank (LVP)',              cost: 3000,  laborPct: 0.50, trade: 'Flooring' },
+    lighting:    { material: 'Flush-mount + under-cabinet',    cost: 1500,  laborPct: 0.50, trade: 'Electrical' },
+    plumbing:    { material: 'Standard sink + faucet',         cost: 1800,  laborPct: 0.45, trade: 'Plumbing' },
   },
   Mid: {
-    countertops: { material: 'Granite or quartz',              cost: 7000,  laborPct: 0.35, trade: 'Countertop Installer' },
-    cabinets:    { material: 'Semi-custom shaker cabinets',    cost: 18000, laborPct: 0.35, trade: 'Cabinetry' },
-    backsplash:  { material: 'Ceramic subway tile',            cost: 2500,  laborPct: 0.55, trade: 'Tile' },
-    appliances:  { material: 'Mid-range stainless (Samsung/LG)', cost: 8000, laborPct: 0.10, trade: 'Appliance Install' },
-    flooring:    { material: 'Engineered hardwood',            cost: 4500,  laborPct: 0.50, trade: 'Flooring' },
-    lighting:    { material: 'Recessed + pendant island light', cost: 2500, laborPct: 0.50, trade: 'Electrical' },
-    plumbing:    { material: 'Undermount sink + pull-down faucet', cost: 3000, laborPct: 0.40, trade: 'Plumbing' },
+    countertops: { material: 'Granite or quartz',              cost: 8000,  laborPct: 0.35, trade: 'Countertop Installer' },
+    cabinets:    { material: 'Semi-custom shaker cabinets',    cost: 22000, laborPct: 0.35, trade: 'Cabinetry' },
+    backsplash:  { material: 'Ceramic subway tile',            cost: 3000,  laborPct: 0.55, trade: 'Tile' },
+    appliances:  { material: 'Mid-range stainless (Samsung/LG)', cost: 9000, laborPct: 0.10, trade: 'Appliance Install' },
+    flooring:    { material: 'Engineered hardwood',            cost: 5000,  laborPct: 0.50, trade: 'Flooring' },
+    lighting:    { material: 'Recessed + pendant island light', cost: 2800, laborPct: 0.50, trade: 'Electrical' },
+    plumbing:    { material: 'Undermount sink + pull-down faucet', cost: 3200, laborPct: 0.40, trade: 'Plumbing' },
   },
   Premium: {
     countertops: { material: 'Premium quartz or natural stone', cost: 14000, laborPct: 0.30, trade: 'Countertop Installer' },
@@ -202,9 +202,10 @@ export const BATH_ADDITION_BASE: Record<BathType, number> = {
 
 /**
  * ROI multiplier for new bathroom additions — ARV arbitrage model.
- * Based on build cost vs. market value per sqft.
+ * Based on Phoenix metro blended build cost ($250–400/sqft) vs. resale $/sqft.
+ * Calibrated to metro-wide average, not Arcadia-only.
  */
-export const BATH_ADDITION_ROI = 1.57;
+export const BATH_ADDITION_ROI = 1.30;
 
 /**
  * ROI multiplier for bathroom renovations — Cost vs. Value data.

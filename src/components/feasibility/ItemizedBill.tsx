@@ -122,9 +122,12 @@ function TradeRollup({ tradeRollup }: { tradeRollup: ItemizedResult['tradeRollup
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
         {sorted.map(([trade, data]) => (
-          <div key={trade} className="flex items-center justify-between rounded-lg bg-white/5 px-3 py-2">
-            <span className="text-purple-300/80 text-sm truncate mr-2">{trade}</span>
-            <div className="flex items-center gap-3 text-xs font-mono tabular-nums shrink-0">
+          <div
+            key={trade}
+            className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between rounded-lg bg-white/5 px-3 py-2"
+          >
+            <span className="text-purple-300/80 text-sm mr-2 break-words">{trade}</span>
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs font-mono tabular-nums">
               <span className="text-purple-400/50">{fmt(data.materialCost)} mat</span>
               <span className="text-purple-400/50">{fmt(data.laborCost)} labor</span>
               <span className="text-white font-medium">{fmt(data.totalCost)}</span>
@@ -313,6 +316,7 @@ export function ItemizedBill() {
       flooring: wishlist.flooring,
       pool: wishlist.pool,
       homeStyle: wishlist.homeStyle,
+      homeSqft: project?.property?.sqft || undefined,
       roomFeatures: wishlist.roomFeatures,
       kitchenFeatures: wishlist.kitchenFeatures,
       bathroomFeatures: wishlist.bathroomFeatures,
@@ -321,7 +325,7 @@ export function ItemizedBill() {
       outdoorFeatures: wishlist.outdoorFeatures,
       systemsDetails: wishlist.systemsDetails,
     });
-  }, [wishlist]);
+  }, [wishlist, project?.property?.sqft]);
 
   const { totalCost, totalValue, netTotal } = result;
   const postRenovationValue = currentHomeValue + totalValue;

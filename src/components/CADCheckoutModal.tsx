@@ -3,7 +3,6 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { X, Lock, CheckCircle2, CreditCard, Sparkles, AlertCircle } from 'lucide-react';
 import {
     CAD_PACKAGE_PRICE,
-    CAD_PACKAGE_US_PRICE_LOW,
     CAD_PACKAGE_US_PRICE_HIGH,
     CAD_TURNAROUND,
     CAD_DELIVERABLES,
@@ -28,7 +27,6 @@ export function CADCheckoutModal({ onClose, isOpen }: CADCheckoutModalProps) {
         }, 2000);
     };
 
-    const usLow = `$${(CAD_PACKAGE_US_PRICE_LOW / 1000).toFixed(0)}K`;
     const usHigh = `$${(CAD_PACKAGE_US_PRICE_HIGH / 1000).toFixed(0)}K`;
 
     return (
@@ -116,8 +114,8 @@ export function CADCheckoutModal({ onClose, isOpen }: CADCheckoutModalProps) {
                                         </div>
                                     </div>
                                     <div className="flex items-center gap-2 mt-2 pt-3 border-t border-gray-200">
-                                        <span className="text-xs font-semibold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-full">Save {usLow}–{usHigh}</span>
-                                        <span className="text-xs text-gray-400">vs. a US architecture firm</span>
+                                        <span className="text-xs font-semibold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-full">{usHigh}+ Value</span>
+                                        <span className="text-xs text-gray-400">yours at cost</span>
                                     </div>
                                 </div>
 

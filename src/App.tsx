@@ -1,22 +1,23 @@
 import React, { useState, useEffect, useMemo, Component } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { Link, useNavigate } from 'react-router-dom';
 import {
   Home,
   Wallet,
   ListChecks,
   Calculator,
-  Lightbulb,
   CheckCircle2,
-  Circle,
   Sparkles,
   Save,
   ChevronRight,
   ChevronLeft,
-  LogOut
+  LogOut,
+  FileText,
 } from 'lucide-react';
 import { useProjectOptional } from './context/ProjectContext';
 import { useAuthOptional } from './context/AuthContext';
 import { SaveWorkModal } from './components/SaveWorkModal';
+import { ContactCaptureModal } from './components/ContactCaptureModal';
 import {
   DEFAULT_CURRENT_HOME_VALUE,
   USER_RATE_ANNUAL,
@@ -28,7 +29,6 @@ import { PropertyOverview } from './components/PropertyOverview';
 import { PropertyWishlist } from './components/PropertyWishlist';
 import { FinancialAnalysis } from './components/FinancialAnalysis';
 import { FeasibilityGrid } from './components/FeasibilityGrid';
-import { RecommendationSection } from './components/RecommendationSection';
 import { ChatBanner } from './components/ChatBanner';
 
 interface SectionProgress {
@@ -85,9 +85,13 @@ class SectionErrorBoundary extends Component<
 export function App() {
   const projectCtx = useProjectOptional();
   const auth = useAuthOptional();
+  const navigate = useNavigate();
   const project = projectCtx?.project;
   const [activeSection, setActiveSection] = useState<string>('property');
+  const [visitedSections, setVisitedSections] = useState<Set<string>>(() => new Set(['property']));
   const [saveModalOpen, setSaveModalOpen] = useState(false);
+  const [contactCaptureOpen, setContactCaptureOpen] = useState(false);
+  const [pendingSection, setPendingSection] = useState<string | null>(null);
   const [progress, setProgress] = useState<SectionProgress>({
     property: 100,
     wishlist: 0,
@@ -117,6 +121,32 @@ export function App() {
     setProgress(prev => ({ ...prev, [section]: value }));
   };
 
+  // Check if we have contact info (email + phone) captured
+  const hasContactInfo = Boolean(
+    project?.homeowner?.email?.trim() && project?.homeowner?.phone?.trim()
+  );
+
+  // Gated navigation: if moving past wishlist and we don't have contact info, prompt
+  const navigateToSection = (targetSection: string) => {
+    const targetIdx = ['property', 'wishlist', 'financial', 'feasibility'].indexOf(targetSection);
+    const wishlistIdx = 1; // wishlist is index 1
+    // If navigating forward past wishlist and no contact info, gate it
+    if (targetIdx > wishlistIdx && !hasContactInfo) {
+      setPendingSection(targetSection);
+      setContactCaptureOpen(true);
+      return;
+    }
+    setActiveSection(targetSection);
+  };
+
+  const handleContactCaptureComplete = (_email: string, _phone: string) => {
+    setContactCaptureOpen(false);
+    if (pendingSection) {
+      setActiveSection(pendingSection);
+      setPendingSection(null);
+    }
+  };
+
   const totalProgress = Math.round(
     (progress.property + progress.wishlist + progress.financial + progress.feasibility) / 4
   );
@@ -129,6 +159,14 @@ export function App() {
   ];
 
   const currentSectionIndex = sections.findIndex(s => s.id === activeSection);
+
+  // Track which sections the user has visited (so we can unlock free navigation once all are touched)
+  useEffect(() => {
+    setVisitedSections((prev) => (prev.has(activeSection) ? prev : new Set([...prev, activeSection])));
+  }, [activeSection]);
+
+  const sectionIds = useMemo(() => sections.map((s) => s.id), [sections]);
+  const hasTouchedEverySection = sectionIds.length > 0 && sectionIds.every((id) => visitedSections.has(id));
 
   // Scroll to top of page whenever section changes so user always lands at top of next section
   useEffect(() => {
@@ -268,16 +306,20 @@ export function App() {
               const Icon = section.icon;
               const isActive = activeSection === section.id;
               const isCompleted = section.progress >= 100;
-              // Only lock *future* sections whose previous section isn't far enough along.
-              // Once you've reached a section (or any earlier one), you can always navigate back to it.
-              const isLocked = idx > currentSectionIndex && idx > 0 && sections[idx - 1].progress < 50;
+              // Guard rails: lock future sections until the previous section has enough progress.
+              // Once the user has touched every section (Property, Wishlist, Analysis, Feasibility), allow free navigation.
+              const isLocked =
+                !hasTouchedEverySection &&
+                idx > currentSectionIndex &&
+                idx > 0 &&
+                sections[idx - 1].progress < 50;
               const isNextSection = idx === currentSectionIndex + 1;
 
               return (
                 <motion.button
                   type="button"
                   key={section.id}
-                  onClick={() => !isLocked && setActiveSection(section.id)}
+                  onClick={() => !isLocked && navigateToSection(section.id)}
                   disabled={isLocked}
                   whileTap={isLocked ? undefined : { scale: 0.97 }}
                   transition={{ type: 'spring', stiffness: 400, damping: 17 }}
@@ -303,6 +345,16 @@ export function App() {
                 </motion.button>
               );
             })}
+
+            {/* Shortcut to shareable Project Summary */}
+            <Link
+              to="/summary"
+              className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium whitespace-nowrap text-emerald-300 hover:text-white hover:bg-emerald-500/20 transition-all border border-emerald-500/30 ml-2"
+            >
+              <FileText size={16} />
+              <span className="hidden sm:inline">Summary</span>
+              <span className="text-[10px] text-emerald-400/70">↗</span>
+            </Link>
           </div>
         </div>
       </header>
@@ -334,11 +386,10 @@ export function App() {
                 if (section.id === 'feasibility') {
                   return (
                     <div key={section.id} className="space-y-10" id="your-decision">
-                      <RecommendationSection variant="dashboard" />
                       <Component
                         onProgressUpdate={(value: number) => handleProgressUpdate(section.id as keyof SectionProgress, value)}
                         isActive={true}
-                        onNavigateTo={(sectionId: string) => setActiveSection(sectionId)}
+                        onNavigateTo={(sectionId: string) => navigateToSection(sectionId)}
                       />
                     </div>
                   );
@@ -351,7 +402,7 @@ export function App() {
                       isActive={true}
                       initialBedrooms={project?.property?.beds}
                       initialBathrooms={project?.property?.baths}
-                      onFinishWishlist={nextSection ? () => setActiveSection(nextSection.id) : undefined}
+                      onFinishWishlist={nextSection ? () => navigateToSection(nextSection.id) : undefined}
                       nextSectionLabel={nextSection?.label ?? 'Analysis'}
                     />
                   );
@@ -362,7 +413,7 @@ export function App() {
                     onProgressUpdate={(value: number) => handleProgressUpdate(section.id as keyof SectionProgress, value)}
                     isActive={true}
                     {...(section.id === 'property' && nextSection && {
-                      onNextSection: () => setActiveSection(nextSection.id),
+                      onNextSection: () => navigateToSection(nextSection.id),
                     })}
                   />
                 );
@@ -414,7 +465,7 @@ export function App() {
               type="button"
               onClick={() => {
                 const nextIndex = Math.min(sections.length - 1, currentSectionIndex + 1);
-                setActiveSection(sections[nextIndex].id);
+                navigateToSection(sections[nextIndex].id);
               }}
               whileTap={{ scale: 0.97 }}
               transition={{ type: 'spring', stiffness: 400, damping: 17 }}
@@ -424,12 +475,16 @@ export function App() {
               <ChevronRight size={18} />
             </motion.button>
           ) : (
-            <a
-              href="#your-decision"
-              className="text-purple-300 hover:text-white text-sm font-medium order-3"
+            <motion.button
+              type="button"
+              onClick={() => navigate('/summary')}
+              whileTap={{ scale: 0.97 }}
+              transition={{ type: 'spring', stiffness: 400, damping: 17 }}
+              className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-cyan-500 text-white font-bold hover:shadow-lg hover:shadow-emerald-500/30 transition-all order-3"
             >
-              Scroll to your options ↑
-            </a>
+              Share Project Summary
+              <ChevronRight size={18} />
+            </motion.button>
           )}
         </div>
 
@@ -443,6 +498,13 @@ export function App() {
       </main>
 
       <SaveWorkModal isOpen={saveModalOpen} onClose={() => setSaveModalOpen(false)} />
+      <ContactCaptureModal
+        isOpen={contactCaptureOpen}
+        onClose={() => { setContactCaptureOpen(false); setPendingSection(null); }}
+        onComplete={handleContactCaptureComplete}
+        initialEmail={project?.homeowner?.email ?? ''}
+        initialPhone={project?.homeowner?.phone ?? ''}
+      />
       <ChatBanner />
     </div>
   );

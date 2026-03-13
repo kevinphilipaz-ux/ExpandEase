@@ -26,8 +26,8 @@ export function WaitlistSection() {
         <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-pink-500/10 border border-pink-500/20 text-pink-300 text-sm font-medium mb-6">
           Coming to Your City
         </div>
-        <h2 className="text-3xl md:text-4xl font-bold mb-3">Be first in line when we launch.</h2>
-        <p className="text-gray-400 mb-8">Get early access to 3D design packages and launch pricing. No spam. No credit card.</p>
+        <h2 className="text-3xl md:text-4xl font-bold mb-3">Not in our service area yet?</h2>
+        <p className="text-gray-400 mb-8">Join the waitlist and we&apos;ll let you know when we launch in your city. No spam. No credit card.</p>
         {status === 'success' ? (
           <div className="flex items-center justify-center gap-3 text-emerald-400 font-semibold text-lg">
             <CheckCircle size={24} /> You're on the list. We'll be in touch.

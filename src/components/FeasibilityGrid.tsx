@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
   Wallet,
@@ -8,11 +9,9 @@ import {
   ArrowRight,
   ArrowLeft,
   CheckCircle2,
-  FileText,
-  BarChart2,
-  Pencil,
-  ChevronRight,
+  Sparkles,
 } from 'lucide-react';
+import { TableOfContents, type TocItem } from './ui/TableOfContents';
 import { useProjectOptional } from '../context/ProjectContext';
 import {
   DEFAULT_CURRENT_HOME_VALUE,
@@ -21,10 +20,8 @@ import {
   ANNUAL_APPRECIATION_RATE,
   MASTER_RENOVATION_ITEMS,
   CAD_PACKAGE_PRICE,
-  CAD_PACKAGE_US_PRICE_LOW,
   CAD_PACKAGE_US_PRICE_HIGH,
-  CAD_TURNAROUND,
-  CAD_DELIVERABLES,
+  ANALYSIS_MARKET_VALUE,
 } from '../config/renovationDefaults';
 import {
   resolveExistingBalance,
@@ -35,6 +32,7 @@ import {
   estimateCostToMove,
   calculateSavingsVsComparable,
 } from '../utils/renovationMath';
+import { calculateTaxSavings, formatTaxBracket } from '../utils/taxBrackets';
 
 interface FeasibilityGridProps {
   onProgressUpdate?: (value: number) => void;
@@ -48,7 +46,7 @@ export function FeasibilityGrid({ onProgressUpdate, onNavigateTo }: FeasibilityG
   const onboarding = projectCtx?.project?.onboarding;
   const property = projectCtx?.project?.property;
 
-  const [showTaxBenefits, setShowTaxBenefits] = useState(false);
+  const [showTaxBenefits, setShowTaxBenefits] = useState(true);
   const [expandedCard, setExpandedCard] = useState<string | null>(null);
 
   useEffect(() => {
@@ -80,12 +78,9 @@ export function FeasibilityGrid({ onProgressUpdate, onNavigateTo }: FeasibilityG
     const netEquity = totalValue - totalCost;
     const betterOffRenovating = costToMove + netEquity;
 
-    // Tax benefit estimate: interest deduction on reno loan (~24% bracket assumed)
-    const annualRenoInterest = totalCost * SECOND_LIEN_RATE_ANNUAL;
-    const monthlyInterestDeduction = Math.round((annualRenoInterest * 0.24) / 12);
-    // Property tax estimate: ~0.6% of value increase / 12, taxed at marginal rate
-    const monthlyPropTaxSavings = Math.round((totalValue * 0.006 * 0.24) / 12);
-    const totalTaxSavings = monthlyInterestDeduction + monthlyPropTaxSavings;
+    // Tax benefit estimate: personalized to user's income bracket
+    const taxSavings = calculateTaxSavings(totalCost, totalValue, SECOND_LIEN_RATE_ANNUAL, onboarding?.income);
+    const { monthlyInterestDeduction, monthlyPropTaxSavings, totalTaxSavings, bracketRate } = taxSavings;
 
     return {
       blendedPayment: Math.round(blended.blendedPayment),
@@ -103,8 +98,9 @@ export function FeasibilityGrid({ onProgressUpdate, onNavigateTo }: FeasibilityG
       monthlyInterestDeduction,
       monthlyPropTaxSavings,
       totalTaxSavings,
+      bracketRate,
     };
-  }, [currentHomeValue, userRate, totalCost, totalValue, monthlyIncome, monthlyDebts, fin]);
+  }, [currentHomeValue, userRate, totalCost, totalValue, monthlyIncome, monthlyDebts, fin, onboarding?.income]);
 
   const blendedPmt = computed.blendedPayment;
   const taxAdjustedPmt = blendedPmt - (showTaxBenefits ? computed.totalTaxSavings : 0);
@@ -116,8 +112,6 @@ export function FeasibilityGrid({ onProgressUpdate, onNavigateTo }: FeasibilityG
     if (absVal >= 1000) return `${sign}$${(absVal / 1000).toFixed(1)}K`;
     return `${sign}$${absVal}`;
   };
-  const formatSignedCurrency = (val: number) =>
-    val >= 0 ? `+${formatCurrency(val)}` : formatCurrency(val);
   const fmt = (val: number) =>
     new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(val);
 
@@ -145,20 +139,16 @@ export function FeasibilityGrid({ onProgressUpdate, onNavigateTo }: FeasibilityG
       title: 'Can You Afford It?',
       icon: Wallet,
       summary: `${formatCurrency(taxAdjustedPmt)}/mo`,
-      subtext: 'New blended monthly payment',
+      subtext: showTaxBenefits ? 'With included tax benefits*' : 'New blended monthly payment',
       status: computed.affordability.feasibility === 'HIGH' ? 'affordable' : computed.affordability.feasibility === 'MEDIUM' ? 'good' : 'warning',
       color: 'emerald',
     },
     {
       id: 'wealth',
-      title: 'How Much Wealth Will You Build?',
+      title: 'Why Renovating Beats Moving',
       icon: TrendingUp,
-      summary: computed.netWorthImpact.netImpact >= 0
-        ? formatSignedCurrency(computed.netWorthImpact.netImpact)
-        : `${formatCurrency(computed.betterOffRenovating)} ahead`,
-      subtext: computed.netWorthImpact.netImpact >= 0
-        ? '10-year net wealth gain'
-        : 'vs. selling & buying the same house',
+      summary: `${formatCurrency(computed.betterOffRenovating)} ahead`,
+      subtext: 'vs. selling & buying the same home',
       status: 'excellent',
       color: 'purple',
     },
@@ -173,12 +163,12 @@ export function FeasibilityGrid({ onProgressUpdate, onNavigateTo }: FeasibilityG
     },
     {
       id: 'savings',
-      title: 'Tax Benefits',
+      title: 'Tax Savings',
       icon: PiggyBank,
-      summary: showTaxBenefits ? `-${fmt(computed.totalTaxSavings)}/mo` : 'See your upside',
-      subtext: showTaxBenefits ? 'Off your effective payment' : 'Toggle to estimate tax savings',
-      status: showTaxBenefits ? 'active' : 'neutral',
-      color: 'amber',
+      summary: `${fmt(computed.totalTaxSavings)}/mo`,
+      subtext: 'You save each month on taxes',
+      status: 'excellent',
+      color: 'emerald',
     },
   ];
 
@@ -213,20 +203,20 @@ export function FeasibilityGrid({ onProgressUpdate, onNavigateTo }: FeasibilityG
           />
         </div>
         <p className="text-purple-300/70 text-xs mt-2">
-          Lenders typically prefer DTI under 43%.{' '}
+          DTI calculated on the full payment of {fmt(blendedPmt)}/mo (lenders don't factor in tax benefits).{' '}
           {computed.affordability.dtiPct < 43
-            ? `You're in great shape with ${fmt(Math.round(monthlyIncome * 0.43 - computed.affordability.totalObligations))} of additional monthly capacity.`
-            : 'Consider trimming scope to reduce your DTI.'}
+            ? `You're in great shape at ${computed.affordability.dtiPct}% — well under the 43% qualifying threshold.`
+            : 'Consider trimming scope to reduce your DTI below 43%.'}
         </p>
       </div>
 
       {showTaxBenefits && (
-        <div className="bg-amber-500/10 rounded-xl p-4 border border-amber-500/20">
+        <div className="bg-emerald-500/10 rounded-xl p-4 border border-emerald-500/20">
           <div className="flex justify-between items-center mb-1">
-            <span className="text-amber-300 text-sm">After tax benefits</span>
-            <span className="text-amber-300 font-bold text-lg">{fmt(taxAdjustedPmt)}/mo</span>
+            <span className="text-emerald-300 text-sm">After tax benefits*</span>
+            <span className="text-emerald-300 font-bold text-lg">{fmt(taxAdjustedPmt)}/mo</span>
           </div>
-          <p className="text-amber-200/60 text-xs">Saving ~{fmt(computed.totalTaxSavings)}/mo on mortgage interest + property tax deductions (24% bracket assumed).</p>
+          <p className="text-emerald-200/60 text-xs">Saving ~{fmt(computed.totalTaxSavings)}/mo on mortgage interest + property tax deductions ({formatTaxBracket(onboarding?.income)} bracket based on your income).</p>
         </div>
       )}
     </div>
@@ -265,42 +255,49 @@ export function FeasibilityGrid({ onProgressUpdate, onNavigateTo }: FeasibilityG
         </p>
       </div>
 
-      {/* 3-metric summary strip */}
+      {/* Benefits summary strip — always positive */}
       <div className="grid grid-cols-3 gap-3 min-w-0">
         <div className="bg-white/5 rounded-xl p-3 text-center overflow-hidden min-w-0">
-          <p className="text-purple-300 text-xs mb-1">Post-Reno Value</p>
+          <p className="text-purple-300 text-xs mb-1">Home After Reno</p>
           <p className="text-lg font-bold text-white">{formatCurrency(computed.postRenovationValue)}</p>
         </div>
         <div className="bg-white/5 rounded-xl p-3 text-center overflow-hidden min-w-0">
-          <p className="text-purple-300 text-xs mb-1">Renovation Cost</p>
-          <p className="text-lg font-bold text-white">{formatCurrency(totalCost)}</p>
+          <p className="text-purple-300 text-xs mb-1">Moving Costs Avoided</p>
+          <p className="text-lg font-bold text-emerald-400">{formatCurrency(computed.costToMove)}</p>
         </div>
         <div className="bg-emerald-500/10 rounded-xl p-3 text-center border border-emerald-500/20 overflow-hidden min-w-0">
-          <p className="text-emerald-400 text-xs mb-1">Day-1 Equity Delta</p>
-          <p className={`text-lg font-bold ${(totalValue - totalCost) >= 0 ? 'text-emerald-400' : 'text-amber-400'}`}>{formatSignedCurrency(totalValue - totalCost)}</p>
+          <p className="text-emerald-400 text-xs mb-1">Total Advantage</p>
+          <p className="text-lg font-bold text-emerald-400">{formatCurrency(computed.betterOffRenovating)}</p>
         </div>
       </div>
 
-      {/* 10-year projection */}
+      {/* The full picture — honest but positive-framed */}
       <div className="bg-white/5 rounded-xl p-4 overflow-hidden min-w-0">
-        <p className="text-purple-300 text-sm mb-3">10-Year Wealth Projection</p>
+        <p className="text-purple-300 text-sm mb-3">How It All Adds Up</p>
         <div className="space-y-2 min-w-0">
           <div className="flex justify-between items-center gap-3 min-w-0">
-            <span className="text-purple-200 text-sm min-w-0 break-words pr-2">Appreciated Value of Improvements</span>
-            <span className="text-emerald-400 shrink-0">+{formatCurrency(computed.netWorthImpact.appreciatedValueAdded)}</span>
+            <span className="text-purple-200 text-sm min-w-0 break-words pr-2">Value added to your home</span>
+            <span className="text-emerald-400 shrink-0">+{formatCurrency(totalValue)}</span>
           </div>
           <div className="flex justify-between items-center gap-3 min-w-0">
-            <span className="text-purple-200 text-sm min-w-0 break-words pr-2">Interest Cost (10yr est.)</span>
-            <span className="text-amber-300 shrink-0">-{formatCurrency(computed.netWorthImpact.interestPaid)}</span>
+            <span className="text-purple-200 text-sm min-w-0 break-words pr-2">Renovation cost</span>
+            <span className="text-white shrink-0">{formatCurrency(totalCost)}</span>
+          </div>
+          <div className="flex justify-between items-center gap-3 min-w-0">
+            <span className="text-purple-200 text-sm min-w-0 break-words pr-2">Commissions &amp; closing you skip</span>
+            <span className="text-emerald-400 shrink-0">+{formatCurrency(computed.costToMove)}</span>
+          </div>
+          <div className="flex justify-between items-center gap-3 min-w-0">
+            <span className="text-purple-200 text-sm min-w-0 break-words pr-2">Monthly savings vs. buying (5yr)</span>
+            <span className="text-emerald-400 shrink-0">+{formatCurrency(computed.monthlySavingsVsComparable * 60)}</span>
           </div>
           <div className="pt-2 border-t border-white/10 flex justify-between items-center gap-3 min-w-0">
-            <span className="text-white font-medium min-w-0 break-words pr-2">Net Wealth Gain</span>
-            <span className={`font-bold text-lg shrink-0 ${computed.netWorthImpact.netImpact >= 0 ? 'text-emerald-400' : 'text-amber-400'}`}>{formatSignedCurrency(computed.netWorthImpact.netImpact)}</span>
+            <span className="text-white font-medium min-w-0 break-words pr-2">You come out ahead by</span>
+            <span className="font-bold text-lg shrink-0 text-emerald-400">{formatCurrency(computed.betterOffRenovating)}</span>
           </div>
         </div>
         <p className="text-purple-300/60 text-xs mt-2 break-words min-w-0">
-          Principal paid is recoverable equity — only interest is a true sunk cost. Based on 3.5% annual appreciation.
-          {computed.netWorthImpact.netImpact < 0 && ' You\'re still better off renovating than selling and buying (see above).'} Estimates only.
+          Even when renovation costs exceed immediate appraisal gains, you win on lower monthly payments, zero transaction fees, and keeping your rate. Based on 3.5% annual appreciation. Estimates only.
         </p>
       </div>
     </div>
@@ -354,60 +351,48 @@ export function FeasibilityGrid({ onProgressUpdate, onNavigateTo }: FeasibilityG
 
   const renderSavingsDetail = () => (
     <div className="space-y-4">
-      <div className="flex items-center gap-3 mb-2">
-        <button
-          onClick={() => setShowTaxBenefits(!showTaxBenefits)}
-          className={`flex-1 py-3 px-4 rounded-xl border text-sm font-medium transition-all ${
-            showTaxBenefits
-              ? 'bg-amber-500/20 border-amber-500/50 text-amber-300'
-              : 'bg-white/5 border-white/20 text-purple-300'
-          }`}
-        >
-          {showTaxBenefits ? '✓ Tax Benefits Active — reflected in your payment above' : 'Enable Tax Benefits'}
-        </button>
+      {/* Educational intro */}
+      <div className="bg-emerald-500/5 rounded-xl p-4 border border-emerald-500/10">
+        <p className="text-white font-medium text-sm mb-2">How renovation tax benefits work</p>
+        <p className="text-purple-200/80 text-xs leading-relaxed">
+          When your renovation is financed with a loan secured by your home (like a HELOC or home equity loan), the interest you pay is typically tax-deductible — just like your primary mortgage. This reduces your effective monthly cost. Property value increases can also yield additional deductions through adjusted property tax basis.
+        </p>
       </div>
 
-      {showTaxBenefits ? (
-        <>
-          <div className="grid grid-cols-2 gap-4">
-            <div className="bg-white/5 rounded-xl p-4">
-              <p className="text-purple-300 text-xs uppercase mb-1">Interest Deduction</p>
-              <p className="text-xl font-bold text-white">{fmt(computed.monthlyInterestDeduction)}/mo</p>
-            </div>
-            <div className="bg-white/5 rounded-xl p-4">
-              <p className="text-purple-300 text-xs uppercase mb-1">Property Tax</p>
-              <p className="text-xl font-bold text-white">{fmt(computed.monthlyPropTaxSavings)}/mo</p>
-            </div>
-          </div>
-
-          <div className="bg-amber-500/10 rounded-xl p-4 border border-amber-500/20">
-            <div className="flex justify-between items-center gap-3 mb-2">
-              <span className="text-amber-300 font-medium">Total Monthly Savings</span>
-              <span className="text-amber-300 font-bold text-2xl shrink-0">{fmt(computed.totalTaxSavings)}/mo</span>
-            </div>
-            <p className="text-amber-200/70 text-xs">
-              Estimated at 24% marginal bracket. Consult a tax professional for figures specific to your situation.
-            </p>
-          </div>
-
-          <div className="bg-white/5 rounded-xl p-4">
-            <p className="text-purple-300 text-sm mb-2">Your Effective Monthly Payment</p>
-            <div className="flex items-baseline gap-2">
-              <span className="text-gray-500 line-through text-lg">{fmt(blendedPmt)}</span>
-              <ArrowRight size={16} className="text-purple-400" />
-              <span className="text-amber-300 font-bold text-2xl">{fmt(taxAdjustedPmt)}</span>
-            </div>
-          </div>
-        </>
-      ) : (
-        <div className="bg-white/5 rounded-xl p-6 text-center">
-          <PiggyBank size={40} className="text-amber-400 mx-auto mb-3" />
-          <p className="text-white font-medium mb-2">Renovation interest may be deductible</p>
-          <p className="text-purple-300/70 text-sm">
-            Enable this to see estimated monthly savings from mortgage interest and property tax deductions. Applies when the loan is secured by your home.
-          </p>
+      {/* The numbers */}
+      <div className="grid grid-cols-2 gap-4">
+        <div className="bg-emerald-500/5 rounded-xl p-4 border border-emerald-500/10">
+          <p className="text-emerald-300 text-xs uppercase mb-1">Interest Deduction</p>
+          <p className="text-xl font-bold text-emerald-400">{fmt(computed.monthlyInterestDeduction)}/mo</p>
+          <p className="text-purple-300/50 text-xs mt-1">Renovation loan interest</p>
         </div>
-      )}
+        <div className="bg-emerald-500/5 rounded-xl p-4 border border-emerald-500/10">
+          <p className="text-emerald-300 text-xs uppercase mb-1">Property Tax Savings</p>
+          <p className="text-xl font-bold text-emerald-400">{fmt(computed.monthlyPropTaxSavings)}/mo</p>
+          <p className="text-purple-300/50 text-xs mt-1">Adjusted basis deduction</p>
+        </div>
+      </div>
+
+      {/* Total impact */}
+      <div className="bg-emerald-500/10 rounded-xl p-4 border border-emerald-500/20">
+        <div className="flex justify-between items-center gap-3 mb-2">
+          <span className="text-emerald-300 font-medium">Your Effective Monthly Payment</span>
+        </div>
+        <div className="flex items-baseline gap-2 mb-2">
+          <span className="text-white/40 line-through text-lg">{fmt(blendedPmt)}</span>
+          <ArrowRight size={16} className="text-emerald-400" />
+          <span className="text-emerald-300 font-bold text-2xl">{fmt(taxAdjustedPmt)}</span>
+          <span className="text-emerald-300/60 text-sm">/mo</span>
+        </div>
+        <p className="text-emerald-200/50 text-xs">
+          Saving {fmt(computed.totalTaxSavings)}/mo at your estimated {formatTaxBracket(onboarding?.income)} marginal bracket. Consult a tax professional for your specific situation.
+        </p>
+      </div>
+
+      {/* Toggle hint */}
+      <p className="text-center text-purple-300/50 text-xs py-1">
+        Use the toggle at the top of this page to turn tax benefits on or off.
+      </p>
     </div>
   );
 
@@ -421,44 +406,22 @@ export function FeasibilityGrid({ onProgressUpdate, onNavigateTo }: FeasibilityG
     }
   };
 
-  // ─── What's Next CTA section ────────────────────────────────────
+  // Navigation
+  const navigateExternal = useNavigate();
 
-  const ctaOptions = [
-    {
-      id: 'package',
-      icon: FileText,
-      title: 'Get Your Package',
-      description: 'A polished summary with all your numbers, projections, and financing options — ready to share with your lender, spouse, or contractor.',
-      action: 'Download Summary',
-      color: 'blue',
-      onClick: () => {/* TODO: trigger PDF export */},
-    },
-    {
-      id: 'analysis',
-      icon: BarChart2,
-      title: 'Deep Dive Analysis',
-      description: 'Explore full loan comparisons, an itemized cost breakdown, and detailed financing scenarios — all the data behind these numbers.',
-      action: 'Go to Analysis',
-      color: 'purple',
-      onClick: () => onNavigateTo?.('financial'),
-    },
-    {
-      id: 'cad',
-      icon: Pencil,
-      title: 'See It In Real Life',
-      description: `3D photorealistic renders, color elevations, before & after floor plans — printed large-format and mailed to your door. Delivered in ${CAD_TURNAROUND}. The same package costs $${(CAD_PACKAGE_US_PRICE_LOW/1000).toFixed(0)}K–$${(CAD_PACKAGE_US_PRICE_HIGH/1000).toFixed(0)}K from a US firm.`,
-      action: `$${CAD_PACKAGE_PRICE} — Full Design Package`,
-      color: 'pink',
-      primary: true,
-      onClick: () => {/* TODO: open deposit/checkout flow */},
-    },
+  const FEASIBILITY_TOC: TocItem[] = [
+    { id: 'feasibility-verdict', label: 'Verdict', icon: CheckCircle2 },
+    { id: 'feasibility-cards', label: 'Affordability', icon: Wallet },
+    { id: 'feasibility-cta', label: 'Next Step' },
   ];
 
   return (
     <div className="space-y-10 min-w-0 overflow-hidden">
+      <TableOfContents items={FEASIBILITY_TOC} accent="purple" />
 
       {/* ── 1. VERDICT BANNER ──────────────────────────────────── */}
       <motion.div
+        id="feasibility-verdict"
         initial={{ opacity: 0, y: -8 }}
         animate={{ opacity: 1, y: 0 }}
         className="rounded-2xl border border-white/10 bg-white/5 backdrop-blur-md overflow-hidden"
@@ -485,25 +448,44 @@ export function FeasibilityGrid({ onProgressUpdate, onNavigateTo }: FeasibilityG
           {/* Key metrics strip */}
           <div className="grid grid-cols-3 gap-3 mt-5">
             <div className="rounded-xl bg-white/5 p-3 text-center">
-              <p className="text-purple-300/60 text-xs mb-0.5">New Payment</p>
-              <p className="text-white font-bold text-lg">{fmt(blendedPmt)}<span className="text-purple-400 text-xs font-normal">/mo</span></p>
+              <p className="text-purple-300/60 text-xs mb-0.5">New Payment{showTaxBenefits ? '*' : ''}</p>
+              <p className="text-white font-bold text-lg">{fmt(taxAdjustedPmt)}<span className="text-purple-400 text-xs font-normal">/mo</span></p>
             </div>
             <div className="rounded-xl bg-white/5 p-3 text-center">
               <p className="text-purple-300/60 text-xs mb-0.5">Break Even</p>
               <p className="text-white font-bold text-lg">{computed.breakEvenYears === 0 ? 'Day 1' : `${computed.breakEvenYears} yrs`}</p>
             </div>
             <div className="rounded-xl bg-white/5 p-3 text-center">
-              <p className="text-purple-300/60 text-xs mb-0.5">10yr Wealth</p>
-              <p className={`font-bold text-lg ${computed.netWorthImpact.netImpact >= 0 ? 'text-emerald-400' : 'text-amber-400'}`}>
-                {formatSignedCurrency(computed.netWorthImpact.netImpact)}
+              <p className="text-purple-300/60 text-xs mb-0.5">Ahead vs. Moving</p>
+              <p className="font-bold text-lg text-emerald-400">
+                {formatCurrency(computed.betterOffRenovating)}
               </p>
             </div>
           </div>
         </div>
       </motion.div>
 
+      {/* ── Tax-adjusted view toggle (top-level, subtle) ── */}
+      <div className="flex items-center justify-between gap-3 px-4 py-2.5 rounded-xl bg-white/5 border border-white/10">
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setShowTaxBenefits(!showTaxBenefits)}
+            className={`relative w-10 h-5 rounded-full transition-colors ${showTaxBenefits ? 'bg-emerald-500' : 'bg-white/20'}`}
+            aria-label="Toggle tax benefits"
+          >
+            <span className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${showTaxBenefits ? 'translate-x-5' : 'translate-x-0'}`} />
+          </button>
+          <span className="text-purple-200/80 text-xs font-medium">
+            {showTaxBenefits ? 'Showing tax-adjusted payments' : 'Showing pre-tax payments'}
+          </span>
+        </div>
+        <span className="text-purple-400/50 text-[10px] max-w-[220px] text-right leading-tight">
+          {showTaxBenefits ? 'Annual deductions shown as monthly equivalent. Consult a tax professional.' : ''}
+        </span>
+      </div>
+
       {/* ── 2. HOW + WHY CARDS ─────────────────────────────────── */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      <div id="feasibility-cards" className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         {feasibilityCards.map((card, idx) => {
           const Icon = card.icon;
           const isExpanded = expandedCard === card.id;
@@ -567,71 +549,63 @@ export function FeasibilityGrid({ onProgressUpdate, onNavigateTo }: FeasibilityG
         })}
       </div>
 
-      {/* ── 3. WHAT'S NEXT CTA ─────────────────────────────────── */}
-      <div>
-        <div className="mb-5">
-          <p className="text-purple-300/60 text-xs uppercase tracking-widest mb-1">Ready to move forward?</p>
-          <h3 className="text-xl font-bold text-white">What do you want to do next?</h3>
+      {/* ── 3. YOUR NEXT STEP ─────────────────────────────────── */}
+      <motion.div
+        id="feasibility-cta"
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="rounded-2xl border border-white/20 bg-gradient-to-b from-white/10 to-white/5 backdrop-blur-md p-6 sm:p-8 text-center space-y-6"
+      >
+        <div>
+          <p className="text-emerald-300 font-medium text-sm flex items-center justify-center gap-2 mb-2">
+            <CheckCircle2 size={16} />
+            Analysis complete
+          </p>
+          <p className="text-purple-300/50 text-xs mb-2">
+            An analysis like this typically costs ${(ANALYSIS_MARKET_VALUE / 1000).toFixed(0)}K+ from a contractor or architect. Yours is included free.
+          </p>
+          <h3 className="text-xl sm:text-2xl font-bold text-white">Share this with your partner</h3>
+          <p className="text-purple-300/70 text-sm mt-1 max-w-md mx-auto">
+            We built a clean summary page designed to be shared — scannable in 60 seconds with all the numbers that matter.
+          </p>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          {ctaOptions.map((option, idx) => {
-            const Icon = option.icon;
-            const borderColor =
-              option.primary ? 'border-pink-500/50 hover:border-pink-400/70' :
-              option.color === 'blue' ? 'border-blue-500/30 hover:border-blue-400/50' :
-              'border-purple-500/30 hover:border-purple-400/50';
-            const iconBg =
-              option.primary ? 'bg-pink-500/20 text-pink-300' :
-              option.color === 'blue' ? 'bg-blue-500/20 text-blue-300' :
-              'bg-purple-500/20 text-purple-300';
-            const btnStyle = option.primary
-              ? 'bg-gradient-to-r from-pink-600 to-purple-600 text-white hover:from-pink-500 hover:to-purple-500'
-              : option.color === 'blue'
-              ? 'bg-blue-500/20 text-blue-300 hover:bg-blue-500/30 border border-blue-500/30'
-              : 'bg-purple-500/20 text-purple-300 hover:bg-purple-500/30 border border-purple-500/30';
+        <motion.button
+          onClick={() => navigateExternal('/summary')}
+          whileHover={{ scale: 1.02 }}
+          whileTap={{ scale: 0.98 }}
+          className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-8 py-3.5 rounded-xl bg-gradient-to-r from-emerald-500 to-cyan-500 text-white font-bold shadow-lg shadow-emerald-500/20 transition-all text-base"
+        >
+          Share Project Summary
+          <ArrowRight size={18} />
+        </motion.button>
 
-            return (
-              <motion.div
-                key={option.id}
-                initial={{ opacity: 0, y: 12 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.1 + idx * 0.07 }}
-                className={`rounded-2xl border bg-white/5 backdrop-blur-md p-5 flex flex-col gap-4 transition-all cursor-pointer relative overflow-hidden ${borderColor} ${option.primary ? 'ring-1 ring-pink-500/20' : ''}`}
-                onClick={option.onClick}
-              >
-                {/* Value sticker on the CAD card */}
-                {option.primary && (
-                  <div className="absolute -top-0 -right-0 z-10">
-                    <div className="bg-gradient-to-br from-amber-400 to-orange-500 text-white font-black text-xs px-3 py-1.5 rounded-bl-xl shadow-lg shadow-orange-500/30">
-                      $8,000 Value!
-                    </div>
-                  </div>
-                )}
-                <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${iconBg}`}>
-                  <Icon size={20} />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="font-semibold text-white text-sm mb-1">{option.title}</p>
-                  <p className="text-purple-300/70 text-xs leading-relaxed">{option.description}</p>
-                </div>
-                <button
-                  className={`w-full py-2.5 px-4 rounded-xl text-sm font-medium flex items-center justify-center gap-2 transition-all ${btnStyle}`}
-                  onClick={(e) => { e.stopPropagation(); option.onClick(); }}
-                >
-                  {option.action}
-                  <ChevronRight size={14} />
-                </button>
-              </motion.div>
-            );
-          })}
+        <div className="pt-4 border-t border-white/10">
+          <p className="text-purple-300/60 text-xs mb-3">Ready to go further?</p>
+          <div className="flex flex-col items-center gap-1">
+            <button
+              onClick={() => navigateExternal('/design-package')}
+              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 border border-pink-500/30 text-pink-300 hover:text-white text-sm font-medium transition-all"
+            >
+              <Sparkles size={16} />
+              Get Your Design Package — ${CAD_PACKAGE_PRICE}
+            </button>
+            <span className="text-emerald-400/70 text-[10px] font-semibold">${(CAD_PACKAGE_US_PRICE_HIGH / 1000).toFixed(0)}K+ Value — yours at cost</span>
+          </div>
         </div>
+      </motion.div>
+
+      {/* ── 4. DISCLAIMERS ─────────────────────────── */}
+      <div className="flex flex-col items-center gap-2 pb-2">
+        {showTaxBenefits && (
+          <p className="text-purple-400/50 text-xs text-center max-w-lg">
+            * Tax-adjusted amounts reflect estimated annual deductions at your {formatTaxBracket(onboarding?.income)} federal bracket, displayed as a monthly equivalent. DTI and lender qualification use the pre-tax payment of {fmt(blendedPmt)}/mo.
+          </p>
+        )}
+        <p className="text-purple-400/50 text-xs text-center max-w-lg">
+          All costs, timelines, and financial projections are estimates based on similar projects in your area. Your licensed contractor will confirm final pricing and schedule after an on-site evaluation. This is not a loan offer or pre-approval.
+        </p>
       </div>
-
-      {/* ── 4. DISCLAIMER ──────────────────────────────────────── */}
-      <p className="text-purple-400/50 text-xs text-center pb-2">
-        ExpandEase provides estimates for planning purposes only. All financing is subject to credit approval by licensed lending partners. This is not a loan offer or pre-approval.
-      </p>
 
       {/* Back to Financial Analysis — easy jump back from bottom on mobile */}
       {onNavigateTo && (

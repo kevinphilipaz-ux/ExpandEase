@@ -26,18 +26,19 @@ import {
 import { resolveExistingBalance, calculateBlendedPayment } from '../utils/renovationMath';
 
 const GENERATION_STEPS = [
-  'Parsing your dream home preferences…',
-  'Mapping rooms, finishes & style…',
-  'Generating floor plan layout…',
-  'Rendering 3D structure…',
-  'Preparing CAD-ready package…',
-  'Ready.',
+  'Reading your preferences…',
+  'Laying out your rooms…',
+  'Matching finishes & style…',
+  'Almost there…',
 ];
+
+// ms per generation step — short enough to feel snappy, long enough to feel deliberate
+const STEP_INTERVAL_MS = 650;
 
 interface RecommendationSectionProps {
   compact?: boolean;
   /** Sidebar: compact card for two-column layout so action is always visible */
-  variant?: 'full' | 'sidebar';
+  variant?: 'full' | 'sidebar' | 'dashboard';
 }
 
 export function RecommendationSection({ compact, variant = 'full' }: RecommendationSectionProps) {
@@ -96,9 +97,9 @@ export function RecommendationSection({ compact, variant = 'full' }: Recommendat
           setIsGenerating(false);
           navigate('/design-package');
           timeoutRef.current = null;
-        }, 600);
+        }, 300);
       }
-    }, 1800);
+    }, STEP_INTERVAL_MS);
   }, [navigate]);
 
   if (compact) {
@@ -224,7 +225,7 @@ export function RecommendationSection({ compact, variant = 'full' }: Recommendat
             <p className="text-purple-300/80 text-sm mb-4 flex-grow">See your renovated home before breaking ground. 3D renders, color elevations, floor plans — printed and mailed to your door.</p>
             <div className="flex items-center justify-between text-sm mb-3">
               <span className="text-pink-400 font-bold">${CAD_PACKAGE_PRICE} design package</span>
-              <span className="text-purple-400 text-xs">$5K–$8K from a US firm</span>
+              <span className="text-emerald-400 text-xs font-semibold">$8K+ Value</span>
             </div>
             <motion.button
               onClick={handleSeeIn3D}
@@ -390,7 +391,7 @@ export function RecommendationSection({ compact, variant = 'full' }: Recommendat
           </p>
           <div className="mb-4 flex items-center justify-between">
             <span className="text-pink-400 text-sm font-bold">${CAD_PACKAGE_PRICE} Design Package</span>
-            <span className="text-xs text-purple-400">$5K–$8K from a US firm</span>
+            <span className="text-emerald-400 text-xs font-semibold">$8K+ Value</span>
           </div>
           <motion.button
             onClick={handleSeeIn3D}

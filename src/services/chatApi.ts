@@ -7,10 +7,13 @@
 const VENICE_BASE = 'https://api.venice.ai/api/v1';
 const VENICE_MODEL = 'llama-3.3-70b';
 
+// Vite only exposes env vars prefixed with VITE_ to the client. For production (e.g. Vercel), set VITE_VENICE_API_KEY in the project's Environment Variables, then redeploy.
 const VENICE_KEY =
-  typeof import.meta.env?.VITE_VENICE_API_KEY === 'string'
+  (typeof import.meta.env?.VITE_VENICE_API_KEY === 'string' && import.meta.env.VITE_VENICE_API_KEY.trim() !== ''
     ? import.meta.env.VITE_VENICE_API_KEY
-    : '';
+    : typeof import.meta.env?.VITE_VENICE_INFERENCE_KEY === 'string' && import.meta.env.VITE_VENICE_INFERENCE_KEY.trim() !== ''
+      ? import.meta.env.VITE_VENICE_INFERENCE_KEY
+      : '') as string;
 
 /* ------------------------------------------------------------------ */
 /*  System prompt — mirrors server/promptContext.js                    */
@@ -103,7 +106,9 @@ export interface SendChatResult {
 
 export async function sendChat({ messages, projectSummary }: SendChatOptions): Promise<SendChatResult> {
   if (!VENICE_KEY) {
-    throw new Error('Chat not configured — add VITE_VENICE_API_KEY to your .env file.');
+    throw new Error(
+      'Chat not configured — set VITE_VENICE_API_KEY in .env (local) or in your host\'s environment variables (e.g. Vercel → Settings → Environment Variables), then redeploy.'
+    );
   }
 
   const projectSummaryJson = projectSummary ? JSON.stringify(projectSummary, null, 0) : null;

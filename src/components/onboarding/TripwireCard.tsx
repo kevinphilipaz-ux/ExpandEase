@@ -74,9 +74,10 @@ export function TripwireCard({ onNext }: TripwireCardProps) {
             3D photorealistic renders, color elevations, before &amp; after floor plans — printed large-format and mailed to your door.
           </p>
           <div className="mt-auto">
-            <span className="block text-sm text-pink-300 mb-2 uppercase tracking-wider font-bold">
-              ${CAD_PACKAGE_PRICE} — Saves you $5K–$8K
+            <span className="block text-sm text-pink-300 mb-1 uppercase tracking-wider font-bold">
+              ${CAD_PACKAGE_PRICE}
             </span>
+            <span className="block text-xs text-emerald-400/80 mb-2 font-semibold">$8,000+ Value — yours at cost</span>
             <button
               onClick={() => handleSelect('visualization')}
               className="w-full py-4 rounded-xl bg-gradient-to-r from-pink-600 to-purple-600 text-white font-bold shadow-lg hover:shadow-pink-500/25 transition-all flex items-center justify-center gap-2">

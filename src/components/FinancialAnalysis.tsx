@@ -21,6 +21,7 @@ import {
 } from '../utils/renovationMath';
 import { routeLoanOptions } from '../utils/loanRouter';
 import { ItemizedBill } from './feasibility/ItemizedBill';
+import { TableOfContents, type TocItem } from './ui/TableOfContents';
 import {
   TrendingUp,
   TrendingDown,
@@ -324,14 +325,26 @@ export function FinancialAnalysis({ onProgressUpdate }: FinancialAnalysisProps) 
 
   const steps = [
     { step: 1, title: 'Lock your scope', detail: 'Use the toggles below to include only what you want. Your totals update live.' },
-    { step: 2, title: 'Check affordability', detail: 'Enter income and debts above. We show DTI and whether you’re on track.' },
+    { step: 2, title: 'Check affordability', detail: "Enter income and debts above. We show DTI and whether you're on track." },
     { step: 3, title: 'Optimize for cost or ROI', detail: 'Turn off low-ROI items to save, or add high-ROI ones to maximize value.' },
-    { step: 4, title: 'Choose your payment', detail: 'Use “What if I paid more?” to see how a higher payment changes what you can do.' },
+    { step: 4, title: 'Choose your payment', detail: 'Use "What if I paid more?" to see how a higher payment changes what you can do.' },
+  ];
+
+  const FIN_TOC: TocItem[] = [
+    { id: 'fin-outcome', label: 'The Outcome', icon: Sparkles },
+    { id: 'fin-affordability', label: 'Can You Afford It?', icon: Wallet },
+    { id: 'fin-loans', label: 'Financing Options' },
+    { id: 'fin-compare', label: 'Renovate vs. Move', icon: Home },
+    { id: 'fin-scope', label: 'Every Item', icon: PieChart },
+    { id: 'fin-optimize', label: 'Optimize Plan', icon: SlidersHorizontal },
+    { id: 'fin-next', label: 'Next Steps', icon: Target },
+    { id: 'fin-bill', label: 'Itemized Bill' },
   ];
 
   return (
     <div className="relative min-w-0 overflow-hidden">
-      {/* Full-page pulsing glow — strong enough to read on app’s purple background */}
+      <TableOfContents items={FIN_TOC} accent="purple" />
+      {/* Full-page pulsing glow — strong enough to read on app's purple background */}
       <div className="space-y-6">
         {/* Think Big reminder */}
         <div className="rounded-2xl border border-pink-500/30 bg-gradient-to-r from-pink-500/10 to-purple-500/10 px-5 py-4 flex items-start gap-3 overflow-hidden min-w-0">
@@ -353,7 +366,7 @@ export function FinancialAnalysis({ onProgressUpdate }: FinancialAnalysisProps) 
         </div>
 
         {/* ——— THE PRIZE ——— */}
-        <section className="bg-gradient-to-br from-emerald-900/40 to-green-900/30 rounded-2xl border border-emerald-500/30 p-5 md:p-6 relative overflow-hidden">
+        <section id="fin-outcome" className="bg-gradient-to-br from-emerald-900/40 to-green-900/30 rounded-2xl border border-emerald-500/30 p-5 md:p-6 relative overflow-hidden">
         <div className="absolute inset-0 bg-emerald-500/5" />
         <div className="relative z-10 card-contain">
           <div className="flex items-center gap-2 mb-4 min-w-0">
@@ -388,7 +401,7 @@ export function FinancialAnalysis({ onProgressUpdate }: FinancialAnalysisProps) 
               </p>
             </div>
           </div>
-          <p className="text-emerald-200/90 text-sm font-medium mb-1">What you’re getting</p>
+          <p className="text-emerald-200/90 text-sm font-medium mb-1">What you're getting</p>
           <p className="text-emerald-300/70 text-xs mb-3">
             Your plan includes the scope below — each item adds real value to your home and lifestyle.
           </p>
@@ -447,7 +460,7 @@ export function FinancialAnalysis({ onProgressUpdate }: FinancialAnalysisProps) 
       </section>
 
       {/* ——— AFFORDABILITY (INCOME, DTI, PAYMENT) ——— */}
-      <section className="bg-white/10 backdrop-blur-md rounded-2xl border border-white/20 p-5 overflow-hidden min-w-0">
+      <section id="fin-affordability" className="bg-white/10 backdrop-blur-md rounded-2xl border border-white/20 p-5 overflow-hidden min-w-0">
         <div className="flex items-center gap-2 mb-4 min-w-0">
           <Wallet size={18} className="text-purple-300 shrink-0" />
           <h3 className="font-semibold text-white break-words min-w-0">Can you afford it?</h3>
@@ -570,7 +583,7 @@ export function FinancialAnalysis({ onProgressUpdate }: FinancialAnalysisProps) 
 
       {/* ——— LOAN PRODUCT COMPARISON ——— */}
       {totals.totalCost > 0 && (
-        <section className="bg-white/15 backdrop-blur-md rounded-2xl border border-white/30 p-5 shadow-lg min-w-0">
+        <section id="fin-loans" className="bg-white/15 backdrop-blur-md rounded-2xl border border-white/30 p-5 shadow-lg min-w-0">
           <div className="flex items-center gap-2 mb-4 min-w-0">
             <Wallet size={18} className="text-purple-200 shrink-0" />
             <h3 className="font-semibold text-white break-words min-w-0">Financing options</h3>
@@ -660,7 +673,7 @@ export function FinancialAnalysis({ onProgressUpdate }: FinancialAnalysisProps) 
           </div>
         );
         return (
-          <section className="bg-gradient-to-br from-purple-900/30 to-pink-900/20 rounded-2xl border border-purple-500/30 p-5 md:p-6 relative overflow-hidden">
+          <section id="fin-compare" className="bg-gradient-to-br from-purple-900/30 to-pink-900/20 rounded-2xl border border-purple-500/30 p-5 md:p-6 relative overflow-hidden">
             <div className="absolute inset-0 bg-white/5" />
             <div className="relative z-10 card-contain">
               <div className="flex items-center gap-2 mb-3 min-w-0">
@@ -668,7 +681,7 @@ export function FinancialAnalysis({ onProgressUpdate }: FinancialAnalysisProps) 
                 <h3 className="font-bold text-purple-200 uppercase tracking-wider text-sm break-words min-w-0">Sell & buy the same house?</h3>
               </div>
               <p className="text-purple-200/90 text-sm mb-4 break-words min-w-0 card-text-wrap">
-                What if you sold your current home and bought one priced like your home <em>after</em> renovation? Here’s the comparison — as long as renovating is cheaper per sq ft than buying that same space, adding sq ft and renovating stays the better deal.
+                What if you sold your current home and bought one priced like your home <em>after</em> renovation? Here's the comparison — as long as renovating is cheaper per sq ft than buying that same space, adding sq ft and renovating stays the better deal.
               </p>
 
               {/* Primary value: monthly payment savings */}
@@ -712,7 +725,7 @@ export function FinancialAnalysis({ onProgressUpdate }: FinancialAnalysisProps) 
                     <div className="flex items-start gap-2 min-w-0">
                       <ArrowRight size={16} className="text-emerald-400 shrink-0 mt-0.5" />
                       <p className="text-emerald-200 text-sm break-words card-text-wrap min-w-0">
-                        Even with a net of <span className="font-mono font-medium text-white">{formatCurrencyFull(totals.netEquity)}</span> on this scope, you’re still <span className="font-bold text-emerald-300">{formatCurrencyFull(betterOff)}</span> better off renovating than selling and buying the same house — because cost to move would be ~<span className="font-mono">{formatCurrencyFull(costToMove)}</span>.
+                        Even with a net of <span className="font-mono font-medium text-white">{formatCurrencyFull(totals.netEquity)}</span> on this scope, you're still <span className="font-bold text-emerald-300">{formatCurrencyFull(betterOff)}</span> better off renovating than selling and buying the same house — because cost to move would be ~<span className="font-mono">{formatCurrencyFull(costToMove)}</span>.
                       </p>
                     </div>
                   </div>
@@ -729,7 +742,7 @@ export function FinancialAnalysis({ onProgressUpdate }: FinancialAnalysisProps) 
       })()}
 
       {/* ——— GRANULAR: EVERY ITEM + TOGGLE ——— */}
-        <section className="bg-white/10 backdrop-blur-md rounded-2xl border border-white/20 p-5 overflow-hidden min-w-0">
+        <section id="fin-scope" className="bg-white/10 backdrop-blur-md rounded-2xl border border-white/20 p-5 overflow-hidden min-w-0">
         {/* Header: stack on mobile so title doesn't compress */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-3 mb-4 min-w-0">
           <div className="flex items-center gap-2 min-w-0">
@@ -979,7 +992,7 @@ export function FinancialAnalysis({ onProgressUpdate }: FinancialAnalysisProps) 
                 const betterOff = costToMove - Math.abs(totals.netEquity);
                 return (
                   <span className="ml-2 text-emerald-300/90 text-sm font-medium">
-                    · Cost to move (est.): {formatCurrencyFull(costToMove)} — you’re <span className="text-emerald-300 font-bold">{formatCurrencyFull(betterOff)}</span> better off renovating
+                    · Cost to move (est.): {formatCurrencyFull(costToMove)} — you're <span className="text-emerald-300 font-bold">{formatCurrencyFull(betterOff)}</span> better off renovating
                   </span>
                 );
               })()}
@@ -1019,7 +1032,7 @@ export function FinancialAnalysis({ onProgressUpdate }: FinancialAnalysisProps) 
       </section>
 
       {/* ——— OPTIMIZE: SUGGESTIONS + TRIM TO BUDGET + LIFESTYLE SLIDER ——— */}
-        <section className="bg-white/10 backdrop-blur-md rounded-2xl border border-white/20 p-5 space-y-6">
+        <section id="fin-optimize" className="bg-white/10 backdrop-blur-md rounded-2xl border border-white/20 p-5 space-y-6">
         <div className="flex items-center gap-2">
           <SlidersHorizontal size={18} className="text-purple-300" />
           <h3 className="font-semibold text-white">Optimize your plan</h3>
@@ -1099,7 +1112,7 @@ export function FinancialAnalysis({ onProgressUpdate }: FinancialAnalysisProps) 
       </section>
 
       {/* ——— HOW TO DO IT + GAP ——— */}
-      <section className="grid md:grid-cols-2 gap-4">
+      <section id="fin-next" className="grid md:grid-cols-2 gap-4">
         <div className="bg-white/10 rounded-xl border border-white/20 p-5">
           <div className="flex items-center gap-2 mb-4">
             <Target size={18} className="text-purple-300" />
@@ -1161,7 +1174,7 @@ export function FinancialAnalysis({ onProgressUpdate }: FinancialAnalysisProps) 
       </section>
 
       {/* ——— ITEMIZED BILL ——— */}
-        <section className="bg-white/5 backdrop-blur-md rounded-2xl border border-white/10 p-5">
+        <section id="fin-bill" className="bg-white/5 backdrop-blur-md rounded-2xl border border-white/10 p-5">
           <ItemizedBill />
         </section>
 

@@ -8,7 +8,7 @@
 
 import type { RenovationLineItem, RenovationType } from '../config/renovationDefaults';
 import { MASTER_ITEMS_BY_ID } from '../config/renovationDefaults';
-import { COMPONENT_ESTIMATES as SHARED_COMPONENT_ESTIMATES } from '../config/componentEstimates';
+import { COMPONENT_ESTIMATES as SHARED_COMPONENT_ESTIMATES, scaledComponentCost } from '../config/componentEstimates';
 import {
   type BathType,
   type BathQualityTier,
@@ -74,6 +74,10 @@ export interface ItemizedSelections {
   flooring?: string;
   pool?: string;
   homeStyle?: string;
+  /** Total livable sqft of the home (used to scale flooring, siding, etc.) */
+  homeSqft?: number;
+  /** Exterior wall area sqft — if not provided, estimated as homeSqft × 1.0 */
+  exteriorSqft?: number;
   // Feature arrays
   roomFeatures?: string[];
   kitchenFeatures?: string[];
@@ -360,42 +364,59 @@ function buildFeatureItems(selections: ItemizedSelections): ItemizedLineItem[] {
     { key: 'systemsDetails', category: 'Systems', groupKey: 'systems' },
   ];
 
+  // Determine sqft for per-sqft items
+  const homeSqft = selections.homeSqft ?? 2000;
+  const extSqft = selections.exteriorSqft ?? homeSqft; // exterior wall area ≈ livable sqft
+
   for (const { key, category, groupKey } of featureGroups) {
     const arr = (selections[key] as string[] | undefined) ?? [];
     for (const name of arr) {
       const est = COMPONENT_ESTIMATES[name];
       if (!est) continue;
+
+      // Use per-sqft scaling for items that have it
+      const applicableSqft = groupKey === 'exterior' ? extSqft : homeSqft;
+      const scaled = est.perSqft ? scaledComponentCost(name, applicableSqft) : null;
+      const itemCost = scaled && scaled.total > 0 ? scaled.total : est.cost;
+
       items.push({
         id: `${groupKey}-${name.toLowerCase().replace(/\s+/g, '-')}`,
         label: name,
         category,
         type: 'renovation',
-        cost: est.cost,
-        valueAdded: Math.round(est.cost * est.roi),
+        cost: itemCost,
+        valueAdded: Math.round(itemCost * est.roi),
         roiPct: Math.round(est.roi * 100),
         room: category,
+        materialCost: scaled?.material ?? undefined,
+        laborCost: scaled?.labor ?? undefined,
         isDetail: false,
         groupKey,
       });
     }
   }
 
-  // Flooring
+  // Flooring — uses per-sqft rates when homeSqft is available
   const flooring = selections.flooring ?? 'Hardwood';
   const floorEst = COMPONENT_ESTIMATES[flooring];
   if (floorEst && floorEst.cost > 0) {
+    const floorSqft = selections.homeSqft ?? floorEst.defaultSqft ?? 2000;
+    const scaled = scaledComponentCost(flooring, floorSqft);
+    const floorCost = scaled.total > 0 ? scaled.total : floorEst.cost;
     items.push({
       id: 'flooring-main',
       label: `Flooring — ${flooring}`,
       category: 'Interior',
       type: 'renovation',
-      cost: floorEst.cost,
-      valueAdded: Math.round(floorEst.cost * floorEst.roi),
+      cost: floorCost,
+      valueAdded: Math.round(floorCost * floorEst.roi),
       roiPct: Math.round(floorEst.roi * 100),
       room: 'Flooring',
+      materialCost: scaled.material > 0 ? scaled.material : undefined,
+      laborCost: scaled.labor > 0 ? scaled.labor : undefined,
       isDetail: false,
       groupKey: 'flooring',
-      roiSource: 'Remodeling Magazine 2024 Cost vs. Value Report — Pacific region',
+      roiSource: `${floorSqft.toLocaleString()} sqft × $${floorEst.perSqft ? ((floorEst.materialPerSqft ?? 0) + (floorEst.laborPerSqft ?? 0)).toFixed(2) : '—'}/sqft — Angi/Floor One AZ 2025`,
     });
   }
 

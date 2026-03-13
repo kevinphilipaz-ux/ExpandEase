@@ -1,4 +1,3 @@
-import React from 'react';
 import { useLocation, Link } from 'react-router-dom';
 import {
     CheckCircle,
@@ -15,7 +14,7 @@ import {
 
 export function ApprovedProjectPlan() {
     const location = useLocation();
-    const state = location.state as { formData?: { contractorName: string; companyName: string; licenseNumber: string; bidAmount: string; estimatedWeeks: string }; project?: { meta?: { projectId?: string; createdAt?: string; updatedAt?: string; version?: number }; homeowner?: { firstName?: string }; property?: { address?: string } } } | undefined;
+    const state = location.state as { formData?: { contractorName: string; companyName: string; licenseNumber: string; bidAmount: string; estimatedWeeks: string }; project?: { meta?: { projectId?: string; createdAt?: string; updatedAt?: string; version?: number }; homeowner?: { firstName?: string; email?: string; phone?: string }; property?: { address?: string }; onboarding?: { occupancy?: string } } } | undefined;
     const formData = state?.formData || {
         contractorName: 'Demo Contractor',
         companyName: 'Smith Construction LLC',
@@ -162,7 +161,13 @@ export function ApprovedProjectPlan() {
                                     </div>
                                     <div className="text-right">
                                         <p className="text-sm font-mono text-emerald-600 bg-emerald-50 px-2 py-1 rounded inline-block">Digitally Signed (ExpandEase API)</p>
-                                        <p className="text-xs text-gray-400 mt-1">Timestamp: 2024-03-01 14:32 MST</p>
+                                        <p className="text-xs text-gray-400 mt-1">
+                                          Timestamp: {
+                                            project?.meta?.createdAt
+                                              ? new Date(project.meta.createdAt).toLocaleString('en-US', { timeZoneName: 'short' })
+                                              : new Date().toLocaleString('en-US', { timeZoneName: 'short' })
+                                          }
+                                        </p>
                                     </div>
                                 </div>
                                 <div className="flex items-start justify-between border-t border-gray-200 pt-4">

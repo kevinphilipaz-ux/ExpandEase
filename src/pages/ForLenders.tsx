@@ -1,7 +1,22 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
-import { Home, CheckCircle, XCircle, ArrowRight, Shield, TrendingUp, FileText, Users, ChevronDown, ChevronUp, HeartHandshake, CalendarCheck, MessageSquare, Filter, Magnet, ClipboardList } from 'lucide-react';
+import { Home, CheckCircle, XCircle, ArrowRight, Shield, TrendingUp, FileText, Users, ChevronDown, ChevronUp, HeartHandshake, CalendarCheck, MessageSquare, Filter, Magnet, ClipboardList, Stamp, Sparkles, Zap, Camera, Brain } from 'lucide-react';
+import { TableOfContents } from '../components/ui/TableOfContents';
+import type { TocItem } from '../components/ui/TableOfContents';
+
+const LENDER_TOC: TocItem[] = [
+  { id: 'lender-hero', label: 'Overview' },
+  { id: 'lender-stats', label: 'By the Numbers' },
+  { id: 'lender-engine', label: 'Consumer Engine' },
+  { id: 'lender-compare', label: 'Traditional vs Golden' },
+  { id: 'lender-ai', label: 'AI Risk Intelligence' },
+  { id: 'lender-quotes', label: 'Industry Voices' },
+  { id: 'how-partnership-works', label: 'How It Works' },
+  { id: 'lender-benefits', label: 'Benefits' },
+  { id: 'lender-objections', label: 'Q&A' },
+  { id: 'partner', label: 'Partner' },
+];
 
 const BENEFITS = [
   {
@@ -130,6 +145,7 @@ export function ForLenders() {
 
   return (
     <div className="min-h-screen bg-[#0a0612] text-white">
+      <TableOfContents items={LENDER_TOC} accent="pink" />
       {/* Nav */}
       <nav className="sticky top-0 z-50 bg-[#0a0612]/80 backdrop-blur-xl border-b border-white/10">
         <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
@@ -146,23 +162,27 @@ export function ForLenders() {
       </nav>
 
       {/* Hero */}
-      <section className="relative py-32 px-4 overflow-hidden">
+      <section id="lender-hero" className="relative py-32 px-4 overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-br from-purple-900/30 to-blue-900/10" />
         <div className="relative max-w-4xl mx-auto text-center">
-          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-blue-500/10 border border-blue-500/30 text-blue-300 text-sm font-medium mb-8">
-            For Credit Unions &amp; Lenders
+          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-sm font-medium mb-8">
+            <Sparkles size={14} /> The Future of Renovation Lending Has Arrived
           </div>
           <h1 className="text-5xl md:text-7xl font-bold leading-tight mb-6">
             The renovation loan file<br />
-            <span className="bg-gradient-to-r from-pink-400 to-purple-400 bg-clip-text text-transparent">you've always wanted.</span>
+            <span className="bg-gradient-to-r from-pink-400 to-purple-400 bg-clip-text text-transparent">that never existed. Until now.</span>
           </h1>
+          <p className="text-gray-400 text-lg md:text-xl mb-8 max-w-2xl mx-auto">
+            ExpandEase delivers the first AI-powered, permit-integrated Golden Record — a fully scoped, fixed-price, contractor-backed loan file that makes renovation lending as clean as a purchase mortgage.
+          </p>
           <div className="max-w-xl mx-auto mb-10">
             <ul className="space-y-3 text-left">
               {[
-                'Qualified borrowers + a "Golden Record" — borrower financials, fixed-price contract, appraisal-ready scope',
+                'Golden Record — borrower financials, fixed-price contract, stamped plans, appraisal-ready scope',
+                'AI-verified milestone payments — photo-confirmed progress before every draw release',
+                'Integrated permitting — stamped plans and inspection schedules built into the file',
                 'You hold escrow and approve every draw; we never touch your funds',
                 'Higher project success rates, happier homeowners, fewer defaults',
-                'You approve with confidence',
               ].map((item, i) => (
                 <li key={i} className="flex items-start gap-3">
                   <CheckCircle size={18} className="text-emerald-400 mt-0.5 shrink-0" />
@@ -183,7 +203,7 @@ export function ForLenders() {
       </section>
 
       {/* Stats Strip */}
-      <section className="py-14 px-4 border-y border-white/10">
+      <section id="lender-stats" className="py-14 px-4 border-y border-white/10">
         <div className="max-w-5xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
           {STATS.map(s => (
             <div key={s.label}>
@@ -195,7 +215,7 @@ export function ForLenders() {
       </section>
 
       {/* Consumer Engine / Lender value */}
-      <section className="bg-gradient-to-b from-[#0a0612] to-blue-900/10 border-y border-white/10">
+      <section id="lender-engine" className="bg-gradient-to-b from-[#0a0612] to-blue-900/10 border-y border-white/10">
         <div className="max-w-6xl mx-auto py-20 px-4">
           <div className="grid md:grid-cols-2 gap-12 md:gap-20 items-stretch">
             <div className="flex flex-col">
@@ -277,13 +297,14 @@ export function ForLenders() {
       </section>
 
       {/* Traditional vs Golden Record */}
-      <section className="py-20 px-4">
+      <section id="lender-compare" className="py-20 px-4">
         <div className="max-w-5xl mx-auto">
-          <h2 className="text-3xl md:text-5xl font-bold text-center mb-12">Two kinds of renovation loans.</h2>
+          <h2 className="text-3xl md:text-5xl font-bold text-center mb-4">Two kinds of renovation loans.</h2>
+          <p className="text-center text-gray-400 max-w-2xl mx-auto mb-12">The industry hasn't changed in decades. We're changing it now — with AI, integrated permitting, and a loan file that actually tells the whole story.</p>
           <div className="grid md:grid-cols-2 gap-6">
             <div className="bg-gray-900/50 rounded-2xl p-8 border border-red-500/20">
               <div className="text-red-400 font-bold uppercase text-xs tracking-widest mb-4">Traditional Renovation Loans</div>
-              {['Vague scopes — costs unknown at underwriting', 'Contractor disputes mid-project', 'Cost overruns passed to borrower', 'Traditional FHA 203(k) & Fannie Homestyle: 90+ day process, expensive 3rd-party HUD consultants required.', 'Borrower stress and disputes increase default risk', 'Lender has no visibility after funding', "Often requires a 'two-close' process (construction loan refinanced into a permanent mortgage), doubling closing costs for the borrower.", 'Market is surrendered to a handful of slow, niche specialty lenders because traditional banks lack the infrastructure to manage draw risk.'].map(item => (
+              {['Vague scopes — costs unknown at underwriting', 'Contractor disputes mid-project', 'Cost overruns passed to borrower', 'Traditional FHA 203(k) & Fannie Homestyle: 90+ day process, expensive 3rd-party HUD consultants required.', 'Borrower stress and disputes increase default risk', 'Lender has no visibility after funding', 'Permitting is untracked — delays and code violations are invisible', "Often requires a 'two-close' process, doubling closing costs for the borrower.", 'Market surrendered to slow niche specialty lenders — traditional banks lack infrastructure'].map(item => (
                 <div key={item} className="flex items-start gap-3 py-3 border-b border-white/5 last:border-0">
                   <XCircle size={16} className="text-red-500 mt-0.5 shrink-0" />
                   <span className="text-gray-300 text-sm">{item}</span>
@@ -291,8 +312,8 @@ export function ForLenders() {
               ))}
             </div>
             <div className="bg-gradient-to-b from-purple-900/40 to-pink-900/20 rounded-2xl p-8 border border-pink-500/30">
-              <div className="text-pink-400 font-bold uppercase text-xs tracking-widest mb-4">ExpandEase — Golden Record</div>
-              {['Fixed-price contract before underwriting begins', 'Vetted contractor — licensed, insured, accountable', 'Complete SOW with documented selections before funding', 'Enables you to offer a superior Portfolio ARV product that bypasses the red tape and mandatory 3rd-party HUD consultants required by FHA 203(k)', 'Signed scope = shared truth for homeowner, contractor, and lender', 'Target: 30 days from application to funding', 'Full milestone visibility and documented change orders throughout'].map(item => (
+              <div className="text-pink-400 font-bold uppercase text-xs tracking-widest mb-4">ExpandEase — AI-Powered Golden Record</div>
+              {['Fixed-price contract before underwriting begins', 'Vetted contractor — licensed, insured, accountable', 'AI-generated SOW with 21 trade packages and material specs', 'Integrated permitting — PE-stamped plans, pre-filled applications, inspections scheduled', 'Aria AI monitors project health and flags issues before they become change orders', 'Photo-verified milestones — AI confirms work completion before draw release', 'Enables a superior Portfolio ARV product bypassing FHA 203(k) red tape', 'Target: 30 days from application to funding', 'Full milestone visibility and documented change orders throughout'].map(item => (
                 <div key={item} className="flex items-start gap-3 py-3 border-b border-white/5 last:border-0">
                   <CheckCircle size={16} className="text-emerald-400 mt-0.5 shrink-0" />
                   <span className="text-gray-200 text-sm">{item}</span>
@@ -303,8 +324,37 @@ export function ForLenders() {
         </div>
       </section>
 
+      {/* ── AI + Permitting Platform for Lenders ── */}
+      <section id="lender-ai" className="py-20 px-4 bg-gradient-to-b from-blue-950/20 to-[#0a0612]">
+        <div className="max-w-5xl mx-auto">
+          <div className="text-center mb-14">
+            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-blue-500/10 border border-blue-500/30 text-blue-300 text-sm font-medium mb-6">
+              <Brain size={14} /> AI-Powered Risk Intelligence
+            </div>
+            <h2 className="text-3xl md:text-5xl font-bold mb-4">Technology that <span className="bg-gradient-to-r from-emerald-400 to-cyan-400 bg-clip-text text-transparent">de-risks every file.</span></h2>
+            <p className="text-gray-400 max-w-2xl mx-auto text-lg">Every Golden Record is backed by AI verification, integrated permitting, and real-time project monitoring — giving your underwriters the most complete renovation file in the industry.</p>
+          </div>
+          <div className="grid md:grid-cols-2 gap-6">
+            {[
+              { icon: Sparkles, color: 'violet', title: 'Aria AI — Project Intelligence', desc: 'Aria monitors every project in real time. Flags scope risks before they become change orders, verifies contractor progress against the SOW, and provides your team with early warning signals — so you know about problems before the borrower calls.' },
+              { icon: Stamp, color: 'emerald', title: 'Integrated Permitting in the File', desc: 'Every Golden Record includes PE-stamped plans, permit application status, and a complete inspection schedule linked to construction milestones. Your underwriters see the full compliance picture — not just scope and price.' },
+              { icon: Camera, color: 'pink', title: 'Photo-Verified Draw Releases', desc: 'Contractors upload geo-tagged, time-stamped site photos at each milestone. Aria AI verifies work completion against SOW specifications before recommending draw release. No more relying on manual inspections.' },
+              { icon: Zap, color: 'amber', title: 'TurboMode™ — Zero Idle Days', desc: 'AI-optimized construction scheduling means faster project completion, lower carrying costs for borrowers, and reduced risk of stalled projects. Every trade sequenced for maximum efficiency.' },
+            ].map((card, i) => (
+              <div key={i} className={`bg-white/5 rounded-2xl p-6 border border-${card.color}-500/20 hover:border-${card.color}-500/40 transition-colors`}>
+                <div className={`w-12 h-12 rounded-xl bg-${card.color}-500/10 border border-${card.color}-500/30 flex items-center justify-center mb-4`}>
+                  <card.icon size={22} className={`text-${card.color}-400`} />
+                </div>
+                <h3 className="text-lg font-bold mb-2">{card.title}</h3>
+                <p className="text-gray-400 leading-relaxed text-sm">{card.desc}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
       {/* What we've heard — quote slider */}
-      <section className="py-10 px-4 bg-white/5 border-y border-white/10">
+      <section id="lender-quotes" className="py-10 px-4 bg-white/5 border-y border-white/10">
         <div className="max-w-4xl mx-auto">
           <div className="flex items-center gap-3 justify-center mb-6">
             <MessageSquare size={22} className="text-pink-400" />
@@ -327,7 +377,7 @@ export function ForLenders() {
             </div>
           </div>
           <p className="text-white font-medium text-center mt-4 text-sm md:text-base max-w-2xl mx-auto">
-            That skepticism validates our mission. <span className="text-pink-400">The process is broken.</span> We remove the pain points: clear scope before underwriting, fixed price, one signed source of truth.
+            That skepticism validates our mission. <span className="text-pink-400">The process is broken — and we've rebuilt it from the ground up.</span> AI-powered scope generation, integrated permitting, photo-verified milestones, and a single signed source of truth. The future of renovation lending is here.
           </p>
         </div>
       </section>
@@ -354,7 +404,7 @@ export function ForLenders() {
       </section>
 
       {/* Benefits */}
-      <section className="py-20 px-4">
+      <section id="lender-benefits" className="py-20 px-4">
         <div className="max-w-5xl mx-auto">
           <h2 className="text-3xl md:text-5xl font-bold text-center mb-4">Why lenders choose ExpandEase.</h2>
           <p className="text-center text-gray-400 max-w-2xl mx-auto mb-12">We bring leads. We increase project success rates and homeowner satisfaction. We de-risk every file with a fixed-price contract and full SOW before you underwrite.</p>
@@ -376,7 +426,7 @@ export function ForLenders() {
       </section>
 
       {/* Objections */}
-      <section className="py-20 px-4 bg-purple-950/20">
+      <section id="lender-objections" className="py-20 px-4 bg-purple-950/20">
         <div className="max-w-6xl mx-auto">
           <h2 className="text-3xl md:text-4xl font-bold text-center mb-4">Common questions from compliance &amp; underwriting.</h2>
           <p className="text-center text-gray-400 mb-12">Escrow control, contractor risk, overruns, RESPA, volume, and what's in the Golden Record — straight answers.</p>
@@ -409,8 +459,8 @@ export function ForLenders() {
       <section id="partner" className="py-20 px-4">
         <div className="max-w-2xl mx-auto">
           <div className="text-center mb-12">
-            <h2 className="text-3xl md:text-5xl font-bold mb-4">Request a partnership call.</h2>
-            <p className="text-gray-400">A member of our team will reach out within 1 business day.</p>
+            <h2 className="text-3xl md:text-5xl font-bold mb-4">Partner with the future of renovation lending.</h2>
+            <p className="text-gray-400 max-w-lg mx-auto">The renovation market is a $400B+ opportunity that traditional lending has largely surrendered. Early lending partners get priority borrower flow, AI-powered file intelligence, and a competitive edge that didn't exist until now. A member of our team will reach out within 1 business day.</p>
           </div>
           {submitted ? (
             <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-2xl p-12 text-center">

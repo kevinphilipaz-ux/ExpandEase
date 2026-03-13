@@ -6,6 +6,27 @@
 
 export type RoomStatus = 'add' | 'renovate' | 'leave';
 
+/**
+ * A single surface/finish pick — detected by Aria (Venice AI) from Pinterest images,
+ * or manually selected by the homeowner in DesignPackage.
+ */
+export interface MaterialDetail {
+  /** Surface category — e.g. "Countertops", "Flooring", "Cabinets" */
+  category: string;
+  /** Specific material — e.g. "Calacatta quartz", "White oak hardwood" */
+  material: string;
+  /** Color / finish description — e.g. "White with grey veining", "Warm honey" */
+  color: string;
+  /** Budget range low end in dollars (typical 2,500 sq ft home) */
+  budgetLow: number;
+  /** Budget range high end in dollars */
+  budgetHigh: number;
+  /** Short human-readable label — e.g. "Calacatta quartz waterfall countertops" */
+  label: string;
+  /** True when this pick was manually chosen by the homeowner (overrides Aria default) */
+  isManualPick?: boolean;
+}
+
 export interface RoomTile {
   id: string;
   status: RoomStatus;
@@ -84,6 +105,14 @@ export interface ProjectWishlist {
   systemsDetails?: string[];
   /** Global bathroom quality tier — Standard / Premium / Luxury */
   bathQuality?: 'standard' | 'premium' | 'luxury';
+  /**
+   * Material + color picks per surface — populated by Aria (Pinterest scan)
+   * and/or manually chosen in DesignPackage. Used downstream in ContractorReview
+   * and ApprovedProjectPlan as the authoritative finishes schedule.
+   */
+  materialDetails?: MaterialDetail[];
+  /** Aria's poetic style tagline — e.g. "Warm modern farmhouse with spa-like touches" */
+  aiStyleTagline?: string;
 }
 
 /** Financial summary — for lender and feasibility */
@@ -105,6 +134,36 @@ export interface ProjectFinancial {
   paymentSlider?: number;
 }
 
+/** A single audit trail entry — append-only transaction log */
+export interface AuditEntry {
+  seq: number;           // sequential #
+  timestamp: string;     // ISO timestamp
+  field: string;         // e.g. "Electrical — Budget $/sqft"
+  oldValue: string;      // formatted old value
+  newValue: string;      // formatted new value
+  delta: string;         // e.g. "+$4,000" or "-2 wks"
+}
+
+/** Per-trade contractor overrides */
+export interface TradeOverride {
+  proposedBudget: number;
+  proposedDuration: number;
+}
+
+/** Full set of contractor edits — saved alongside sign-off */
+export interface ContractorEdits {
+  editedAt: string;
+  editedBy: string;
+  tradeOverrides: Record<string, TradeOverride>;
+  assumptionOverrides: {
+    totalCost?: number;
+    sqftAdded?: number;
+    contingencyPct?: number;
+    timelineWeeks?: number;
+  };
+  auditTrail: AuditEntry[];
+}
+
 /** Contractor sign-off (filled on Contractor Review) */
 export interface ProjectContractor {
   contractorName: string;
@@ -113,6 +172,7 @@ export interface ProjectContractor {
   bidAmount: string;
   estimatedWeeks: string;
   agreedAt?: string; // ISO timestamp
+  edits?: ContractorEdits;
 }
 
 /** Metadata for defensibility — timestamps and version */
